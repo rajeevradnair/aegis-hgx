@@ -1,0 +1,16 @@
+project:
+  name: aegis-hgx
+  description: Research-grade graph machine learning platform for explainable cyber anomaly detection.
+  default_seed: 42
+
+paths:
+  data_raw: data/raw
+  data_interim: data/interim
+  data_processed: data/processed
+  data_external: data/external
+  reports: reports
+  artifacts: artifacts
+  logs: logs
+
+logging:
+  level: INFO

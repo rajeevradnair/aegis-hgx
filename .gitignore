@@ -1,0 +1,77 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Python build artifacts
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Test and lint caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local data
+data/raw/
+data/interim/
+data/processed/
+data/external/
+*.csv
+*.parquet
+*.jsonl
+*.pkl
+
+# Model and experiment artifacts
+models/
+artifacts/
+mlruns/
+checkpoints/
+*.pt
+*.pth
+*.onnx
+*.joblib
+
+# Logs
+logs/
+*.log
+
+# Environment and secrets
+.env
+.env.*
+*.pem
+*.key
+*.crt
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS/editor files
+.DS_Store
+.idea/
+.vscode/
+
+# Terraform
+infra/terraform/.terraform/
+infra/terraform/*.tfstate
+infra/terraform/*.tfstate.*
+infra/terraform/.terraform.lock.hcl
+
+# Docker/local runtime
+*.pid
+*.sock
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+misc/
