@@ -105,19 +105,3 @@ aegis-hgx/
   infra/
   notebooks/
 ```
-
-## Intended Portfolio Signal
-
-Aegis-HGX is designed to demonstrate capability across:
-
-- applied machine learning
-- graph machine learning
-- temporal modeling
-- anomaly detection
-- ML experimentation
-- reproducibility
-- model evaluation
-- production-style ML infrastructure
-- explainability
-- performance and scalability analysis
-
