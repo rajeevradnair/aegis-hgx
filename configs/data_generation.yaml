@@ -1,0 +1,61 @@
+generation:
+  num_events: 100_000
+  anomaly_rate: 0.12
+  random_seed: 42
+  start_timestamp: "2026-01-01T00:00:00"
+  output_path: data/processed/synthetic_events.csv
+  required_columns:
+  - timestamp
+  - user_id
+  - host_id
+  - process_name
+  - event_type
+  - source_ip
+  - destination_ip
+  - bytes_in
+  - bytes_out
+  - event_hour
+  - is_business_hour
+  - label
+
+entities:
+  num_users: 50
+  num_hosts: 20
+  num_processes: 15
+  num_internal_ips: 20
+  num_external_ips: 10
+
+normal_behavior:
+  business_hour_start: 8
+  business_hour_end: 18
+  common_event_types:
+    - login_success
+    - process_start
+    - file_read
+    - network_connection
+  common_processes:
+    - chrome
+    - outlook
+    - python
+    - powershell
+    - ssh
+    - java
+
+suspicious_behavior:
+  suspicious_hours:
+    - 0
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+  suspicious_event_types:
+    - login_failure
+    - privilege_change
+    - file_write
+    - network_connection
+  suspicious_processes:
+    - mimikatz
+    - unknown_binary
+    - encoded_powershell
+    - netcat

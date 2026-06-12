@@ -8,7 +8,7 @@ test:
 	python -m pytest
 
 lint:
-	python -m ruff check .
+	python -m ruff check . --fix
 
 format:
 	python -m ruff format .
