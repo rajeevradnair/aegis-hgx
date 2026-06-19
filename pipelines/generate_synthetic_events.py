@@ -16,9 +16,7 @@ LOGGER = get_logger(__name__)
 
 CONFIG_PATH = Path("configs/data_generation.yaml")
 
-REQUIRED_COLUMNS = []
 
-"""
 REQUIRED_COLUMNS = [
     "timestamp",
     "user_id",
@@ -33,7 +31,7 @@ REQUIRED_COLUMNS = [
     "is_business_hour",
     "label",
 ]
-"""
+
 
 def load_generation_config(path: str | Path) -> dict[str, Any]:
     config_path = Path(path)

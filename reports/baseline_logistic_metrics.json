@@ -1,0 +1,20 @@
+{
+  "test_rows": 20000,
+  "positive_rows": 2400,
+  "accuracy": 1.0,
+  "precision": 1.0,
+  "recall": 1.0,
+  "f1": 1.0,
+  "roc_auc": 1.0,
+  "pr_auc": 1.0,
+  "confusion_matrix": [
+    [
+      17600,
+      0
+    ],
+    [
+      0,
+      2400
+    ]
+  ]
+}
