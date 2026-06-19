@@ -41,6 +41,9 @@ checkpoints/
 *.onnx
 *.joblib
 mlflow/
+mlflow/
+mlflow.db
+mlruns/
 
 # Logs
 logs/

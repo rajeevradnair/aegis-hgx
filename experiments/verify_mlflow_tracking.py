@@ -1,9 +1,8 @@
-from aegis_hgx.utils.config import load_yaml
-
 from pathlib import Path
-import mlflow
 from typing import Any
 
+import mlflow
+from aegis_hgx.utils.config import load_yaml
 
 CONFIG_PATH = Path("configs/baseline_logistic.yaml") 
 
@@ -19,8 +18,7 @@ def create_experiment_storage(configs:dict[str, Any]):
 
 
 def main() -> None:
-    with CONFIG_PATH.open(encoding="utf-8") as file:
-        configs = load_yaml(CONFIG_PATH)
+    configs = load_yaml(CONFIG_PATH)
 
     database_path, artifact_root = create_experiment_storage(configs)
 
