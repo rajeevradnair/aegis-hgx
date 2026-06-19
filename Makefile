@@ -2,7 +2,7 @@
 
 install:
 	python -m pip install --upgrade pip
-	python -m pip install -e ".[ml]"
+	python -m pip install -e ".[ml, serving]"
 
 test:
 	python -m pytest

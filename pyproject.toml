@@ -19,6 +19,12 @@ ml = [
     "scikit-learn>=1.4.0"
 ]
 
+serving = [
+    "fastapi",
+    "uvicorn[standard]",
+    "httpx2",
+]
+
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
