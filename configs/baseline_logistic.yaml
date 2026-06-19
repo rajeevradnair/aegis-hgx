@@ -25,3 +25,9 @@ model:
 outputs:
   metrics_path: reports/baseline_logistic_metrics.json
   model_path: artifacts/models/logistic_baseline.joblib
+
+experiment_tracking:
+  experiment_name: aegis-hgx-logistic-baseline
+  uri: sqlite:///mlflow/mlflow.db
+  artifact_root: mlflow/mlruns
+  
