@@ -1,0 +1,8 @@
+{
+  "dataset_name": "synthetic_cyber_events",
+  "source_file": "data/processed/synthetic_events.csv",
+  "s3_uri": "s3://aegis-hgx/bronze/synthetic/events/synthetic_events.csv",
+  "zone": "bronze",
+  "format": "csv",
+  "description": "Synthetic cyber event dataset used for early AEGIS-HGX model and infrastructure validation."
+}
