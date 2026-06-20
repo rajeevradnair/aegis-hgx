@@ -45,6 +45,9 @@ Ensure the trained model exists:
 
 ls artifacts/models/logistic_baseline.joblib
 
+If not, then
+python3 -m aegis_hgx.models.baselines.train_logistic_baseline.py
+
 Start the API:
 
 uvicorn aegis_hgx.models.serving.app:app --reload

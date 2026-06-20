@@ -32,7 +32,6 @@ data/external/
 *.pkl
 
 # Model and experiment artifacts
-models/
 artifacts/
 mlruns/
 checkpoints/

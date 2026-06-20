@@ -162,4 +162,4 @@ Known limitation:
 A truthful gap between the current platform foundation and future research-grade detection quality.
 
 
-I wrote a production skeleton report for AEGIS-HGX that documents the current end-to-end ML platform foundation: synthetic data generation, baseline training, MLflow tracking, FastAPI inference, Docker containerization, S3 data lake layout, ECS Fargate deployment, verification evidence, metrics, limitations, and next engineering steps.
+I wrote a production skeleton report for AEGIS-HGX that documents the current end-to-end ML platform foundation: synthetic data generation, baseline training, MLflow tracking, FastAPI inference serving, Docker containerization, S3 data lake layout, ECS Fargate deployment, verification evidence, metrics, limitations, and next engineering steps.
