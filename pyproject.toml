@@ -16,7 +16,8 @@ dependencies = [
 ml = [
     "numpy>=1.26.0",
     "pandas>=2.2.0",
-    "scikit-learn>=1.4.0"
+    "scikit-learn>=1.4.0",
+    "boto3",
 ]
 
 serving = [
