@@ -1,0 +1,12 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY pyproject.toml README.md ./
+COPY configs ./configs
+COPY src ./src
+
+RUN python -m pip install --upgrade pip
+RUN python -m pip install -e ".[ml]"
+
+CMD ["python", "-m", "aegis_hgx.models.baselines.train_logistic_baseline"]

@@ -1,0 +1,25 @@
+services:
+  training:
+    build:
+      context: .
+      dockerfile: Dockerfile.training
+    image: aegis-hgx-training:local
+    volumes:
+      - ./data:/app/data
+      - ./artifacts:/app/artifacts
+      - ./reports:/app/reports
+      - ./mlflow:/app/mlflow
+
+  inference:
+    build:
+      context: .
+      dockerfile: Dockerfile.inference
+    image: aegis-hgx-inference:local
+    ports:
+      - "9000:8000"
+    volumes:
+      - ./artifacts:/app/artifacts:ro
+      - ./configs:/app/configs:ro
+    depends_on:
+      training:
+        condition: service_completed_successfully
