@@ -9,6 +9,7 @@ import numpy as np
 import yaml
 import json
 import shutil
+from aegis_hgx.models.baselines.config_schema import TrainingConfig, validate_training_config
 
 import mlflow
 import mlflow.sklearn
@@ -49,8 +50,8 @@ def load_training_config(config_path: str) -> dict[str, Any]:
     return config
 
 
-def load_dataset(config: dict[str, Any]) -> pd.DataFrame:
-    dataset_path = Path(config["data"]["input_path"])
+def load_dataset(config: TrainingConfig) -> pd.DataFrame:
+    dataset_path = Path(config.data.input_path)
 
     if not dataset_path.exists():
         raise FileNotFoundError(f"Dataset not found: {dataset_path}")
@@ -65,14 +66,14 @@ def load_dataset(config: dict[str, Any]) -> pd.DataFrame:
 
 def split_features_and_target(
     dataset: pd.DataFrame,
-    config: dict[str, Any],
+    config: TrainingConfig,
 ) -> tuple[pd.DataFrame, pd.Series]:
-    data_config = config["data"]
+    data_config = config.data
 
-    target_column = data_config["target_column"]
+    target_column = data_config.target_column
     feature_columns = (
-        data_config["numeric_features"]
-        + data_config["categorical_features"]
+        data_config.numeric_features
+        + data_config.categorical_features
     )
 
     required_columns = feature_columns + [target_column]
@@ -95,46 +96,46 @@ def split_features_and_target(
 def split_train_test(
     features: pd.DataFrame,
     target: pd.Series,
-    config: dict[str, Any],
+    config: TrainingConfig,
 ) -> tuple[
     tuple[pd.DataFrame, pd.Series],
     tuple[pd.DataFrame, pd.Series],
 ]:
-    split_config = config["split"]
+    split_config = config.split
 
     X_train, X_test, y_train, y_test = train_test_split(
         features,
         target,
-        test_size=split_config["test_size"],
-        random_state=split_config["random_seed"],
+        test_size=split_config.test_size,
+        random_state=split_config.random_seed,
         stratify=target,
     )
 
     return (X_train, y_train), (X_test, y_test)
 
 
-def build_model(config: dict[str, Any]) -> Pipeline:
-    data_config = config["data"]
-    model_config = config["model"]
+def build_model(config: TrainingConfig) -> Pipeline:
+    data_config = config.data
+    model_config = config.model
 
     preprocessor = ColumnTransformer(
         transformers=[
             (
                 "numeric",
                 StandardScaler(),
-                data_config["numeric_features"],
+                data_config.numeric_features,
             ),
             (
                 "categorical",
                 OneHotEncoder(handle_unknown="ignore"),
-                data_config["categorical_features"],
+                data_config.categorical_features,
             ),
         ]
     )
 
     classifier = LogisticRegression(
-        max_iter=model_config["max_iter"],
-        class_weight=model_config["class_weight"],
+        max_iter=model_config.max_iter,
+        class_weight=model_config.class_weight,
     )
 
     return Pipeline(
@@ -153,6 +154,7 @@ def train_model(
     model.fit(X_train, y_train)
 
     return model
+
 
 def evaluate_model(
     trained_model: Pipeline,
@@ -187,9 +189,9 @@ def evaluate_model(
 
 def save_metrics(
     metrics: dict[str, Any],
-    config: dict[str, Any],
+    config: TrainingConfig,
 ) -> Path:
-    metrics_path = Path(config["outputs"]["metrics_path"])
+    metrics_path = Path(config.outputs.metrics_path)
     metrics_path.parent.mkdir(parents=True, exist_ok=True)
 
     with metrics_path.open("w", encoding="utf-8") as metrics_file:
@@ -200,30 +202,31 @@ def save_metrics(
 
 def save_model(
     trained_model: Pipeline,
-    config: dict[str, Any],
+    config: TrainingConfig,
 ) -> Path:
-    model_path = Path(config["outputs"]["model_path"])
+    model_path = Path(config.outputs.model_path)
     model_path.parent.mkdir(parents=True, exist_ok=True)
 
     joblib.dump(trained_model, model_path)
 
     return model_path
 
-def configure_experiment(config: dict[str, Any]) -> str:
-    tracking = config["experiment_tracking"]
 
-    artifact_root = Path(tracking["artifact_root"]).resolve()
+def configure_experiment(config: TrainingConfig) -> str:
+    tracking = config.experiment_tracking
+
+    artifact_root = Path(tracking.artifact_root).resolve()
     artifact_root.mkdir(parents=True, exist_ok=True)
 
-    mlflow.set_tracking_uri(tracking["uri"])
+    mlflow.set_tracking_uri(tracking.uri)
 
     experiment = mlflow.get_experiment_by_name(
-        tracking["experiment_name"]
+        tracking.experiment_name
     )
 
     if experiment is None:
         experiment_id = mlflow.create_experiment(
-            name=tracking["experiment_name"],
+            name=tracking.experiment_name,
             artifact_location=artifact_root.as_uri(),
         )
     else:
@@ -234,19 +237,19 @@ def configure_experiment(config: dict[str, Any]) -> str:
     return experiment_id
 
 def build_run_parameters(
-    config: dict[str, Any],
+    config: TrainingConfig,
 ) -> dict[str, Any]:
     return {
         "model_type": "logistic_regression",
-        "random_seed": config["split"]["random_seed"],
-        "test_size": config["split"]["test_size"],
-        "max_iter": config["model"]["max_iter"],
-        "class_weight": config["model"]["class_weight"],
+        "random_seed": config.split.random_seed,
+        "test_size": config.split.test_size,
+        "max_iter": config.model.max_iter,
+        "class_weight": config.model.class_weight,
         "numeric_feature_count": len(
-            config["data"]["numeric_features"]
+            config.data.numeric_features
         ),
         "categorical_feature_count": len(
-            config["data"]["categorical_features"]
+            config.data.categorical_features
         ),
     }
 
@@ -274,7 +277,8 @@ def main() -> None:
 
     args = parse_args()
     config_path = args.config
-    config = load_training_config(config_path)
+    raw_config = load_training_config(config_path)
+    config = validate_training_config(raw_config)
 
     experiment_id = configure_experiment(config)
     mlflow.set_experiment(experiment_id=experiment_id)
@@ -378,45 +382,6 @@ def main() -> None:
             fig,
             "run_evidence/metrics_report/confusion_matrix.png",
         )
-
-# Deprecated
-def main_legacy() -> None:
-
-    # Read configuration file
-    config = load_training_config("configs/baseline_logistic.yaml")
-
-    # Read the dataset
-    dataset = load_dataset(config)
-
-    # Split data into features & target
-    features, target = split_features_and_target(dataset, config)
-
-    # Split dataset into train & test
-    train_data, test_data = split_train_test(features, target, config)
-
-    # Build the sklearn.pipeline training pipeline
-    model = build_model(config)
-
-    # Train the model (pipeline)
-    trained_model = train_model(model, train_data)
-
-    # Evaluate the model using Test split
-    metrics = evaluate_model(trained_model, test_data)
-
-    # Save metrics
-    save_metrics(metrics, config)
-
-    # Save model
-    save_model(trained_model, config)
-
-
-    metrics_path = save_metrics(metrics, config)
-    model_path = save_model(trained_model, config)
-
-    print(json.dumps(metrics, indent=2))
-    print(f"Metrics saved to: {metrics_path}")
-    print(f"Model saved to: {model_path}")
-
 
 if __name__ == "__main__":
     main()

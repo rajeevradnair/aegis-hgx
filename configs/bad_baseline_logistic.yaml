@@ -1,0 +1,33 @@
+data:
+  input_path: data/processed/synthetic_events.csv
+  target_column: label
+  numeric_features:
+    - bytes_in
+    - bytes_out
+    - event_hour
+    - is_business_hour
+  categorical_features:
+    - user_id
+    - host_id
+    - process_name
+    - event_type
+    - source_ip
+    - destination_ip
+
+split:
+  test_size: 0.2
+  random_seed: 42
+
+model:
+  max_iter: 0
+  class_weight: balanced
+
+outputs:
+  metrics_path: reports/baseline_logistic_metrics.json
+  model_path: artifacts/models/logistic_baseline.joblib
+
+experiment_tracking:
+  experiment_name: aegis-hgx-logistic-baseline
+  uri: sqlite:///mlflow/mlflow.db
+  artifact_root: mlflow/mlruns
+  
