@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
+import numpy as np
+import random
 import yaml
 
 from aegis_hgx.utils.logging import configure_logging, get_logger
@@ -208,6 +210,7 @@ def validate_generation_config(config: dict[str, Any]) -> None:
         raise ValueError("anomaly_rate must be between 0 and 1.")
 
 
+
 def generate_dataset(config: dict[str, Any]) -> pd.DataFrame:
     validate_generation_config(config)
 
@@ -215,6 +218,9 @@ def generate_dataset(config: dict[str, Any]) -> pd.DataFrame:
     entity_config = config["entities"]
     normal_config = config["normal_behavior"]
     suspicious_config = config["suspicious_behavior"]
+    random_seed = config["generation"]["random_seed"]
+    random.seed(random_seed)
+    np.random.seed(random_seed)
 
     num_events = int(generation_config["num_events"])
     anomaly_rate = float(generation_config["anomaly_rate"])

@@ -12,6 +12,10 @@ from src.aegis_hgx.models.baselines.train_logistic_baseline import (
     train_model,
 )
 
+from src.aegis_hgx.models.baselines.config_schema import (
+    TrainingConfig,
+    validate_training_config,
+)
 
 def create_dataset() -> pd.DataFrame:
     rows = []
@@ -48,9 +52,10 @@ def create_dataset() -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def create_config(tmp_path: Path) -> dict:
-    return {
+def create_config(tmp_path: Path) -> TrainingConfig:
+    raw_config = {
         "data": {
+            "input_path" : str(tmp_path / "synthetic_events.csv"),
             "target_column": "label",
             "numeric_features": [
                 "bytes_in",
@@ -79,7 +84,13 @@ def create_config(tmp_path: Path) -> dict:
             "metrics_path": str(tmp_path / "metrics.json"),
             "model_path": str(tmp_path / "model.joblib"),
         },
+        "experiment_tracking": {
+            "experiment_name": "test-logistic-baseline",
+            "uri": f"sqlite:///{tmp_path / 'mlflow.db'}",
+            "artifact_root": str(tmp_path / "mlruns"),
+        },
     }
+    return validate_training_config(raw_config)
 
 
 def test_baseline_training_pipeline(tmp_path: Path) -> None:
