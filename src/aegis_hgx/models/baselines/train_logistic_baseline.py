@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Any
+import argparse
 
 import pandas as pd
+import numpy as np
 import yaml
 import json
 import shutil
@@ -21,11 +23,14 @@ from sklearn.metrics import (
     accuracy_score,
     average_precision_score,
     confusion_matrix,
+    ConfusionMatrixDisplay,
     f1_score,
     precision_score,
     recall_score,
     roc_auc_score,
 )
+import matplotlib.pyplot as plt
+
 
 CONFIG_PATH = "configs/baseline_logistic.yaml"
 
@@ -255,9 +260,21 @@ def extract_scalar_metrics(
         and not isinstance(value, bool)
     }
 
+def parse_args() -> argparse.Namespace:
+    arg_parser = argparse.ArgumentParser()
+    arg_parser.add_argument(
+        "--config",
+        type=Path,
+        default=CONFIG_PATH,
+        help="Path to experiment config YAML file",
+    )
+    return arg_parser.parse_args()
+
 def main() -> None:
 
-    config = load_training_config(CONFIG_PATH)
+    args = parse_args()
+    config_path = args.config
+    config = load_training_config(config_path)
 
     experiment_id = configure_experiment(config)
     mlflow.set_experiment(experiment_id=experiment_id)
@@ -310,7 +327,7 @@ def main() -> None:
 
         # save config_yaml as evidence in mlflow/mlruns
         mlflow.log_artifact(
-            CONFIG_PATH, 
+            str(config_path), 
             artifact_path="run_evidence/parameters"
         )
         print(f"Config file logged in {run.info.artifact_uri}/run_evidence/parameters")
@@ -353,7 +370,14 @@ def main() -> None:
         )
         print(f"Mlflow-formatted model logged in {run.info.artifact_uri}/run_evidence/mlflow_model")
 
-        
+        confusion_matrix = np.array(metrics["confusion_matrix"])
+        fig, ax = plt.subplots()
+        ConfusionMatrixDisplay(confusion_matrix=confusion_matrix, display_labels=["Class 0", "Class 1"]).plot(ax=ax)
+
+        mlflow.log_figure(
+            fig,
+            "run_evidence/metrics_report/confusion_matrix.png",
+        )
 
 # Deprecated
 def main_legacy() -> None:
