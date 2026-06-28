@@ -140,3 +140,4 @@ def test_trained_model_prediction_shape_matches_test_rows(
     assert len(predictions) == X_test.shape[0]
     assert len(predictions) == y_test.shape[0]
     assert set(predictions).issubset({0, 1})
+
