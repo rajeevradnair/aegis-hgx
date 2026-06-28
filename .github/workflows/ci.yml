@@ -23,9 +23,8 @@ jobs:
 
       - name: Install project
         run: |
-          pip install -e .
+          pip install -e ".[ml,serving]"
           pip install pytest
-          pip install httpx2
 
       - name: Generate synthetic data
         run: python pipelines/generate_synthetic_events.py --config configs/data_generation.yaml
