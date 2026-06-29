@@ -86,13 +86,10 @@ def sample_dataset(
     if len(dataset) <= max_rows:
         return dataset.copy()
     
-    dataset.sample(n=1000, frac=0.5, )
-
     return dataset.sample(
         n=max_rows,
         random_state=random_seed,
     ).reset_index(drop=True)
-
 
 
 def write_cic_sample(

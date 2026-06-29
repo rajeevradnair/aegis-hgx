@@ -30,7 +30,7 @@ jobs:
       - name: Generate synthetic data
         run: python pipelines/generate_synthetic_events.py --config configs/data_generation.yaml
 
-      - name: Train baseline model
+      - name: Train synthetic baseline model
         run: python -m aegis_hgx.models.baselines.train_logistic_baseline --config configs/baseline_logistic.yaml
 
       - name: Run tests
