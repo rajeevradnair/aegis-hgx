@@ -174,7 +174,8 @@ def evaluate_model(
 ) -> dict[str, Any]:
     X_test, y_test = test_data
 
-    predictions = trained_model.predict(X_test)
+    # Uses sklearn default classification threshold of 0.5
+    predictions = trained_model.predict(X_test) 
     probabilities = trained_model.predict_proba(X_test)[:, 1]
 
     return {
