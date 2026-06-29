@@ -11,6 +11,7 @@ dependencies = [
     "ruff>=0.4.0",
     "mlflow>=3.0,<4.0",
     "dvc>=3.0",
+    "evidently>=0.7,<0.8",
 ]
 
 [project.optional-dependencies]
