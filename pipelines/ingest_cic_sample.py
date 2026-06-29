@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pandas as pd
 
+DEFAULT_INPUT_DIR = Path("data/external/cicids2017")
 
 DEFAULT_INPUT_CSV = Path(
     "data/external/cicids2017/Monday-WorkingHours.pcap_ISCX.csv"
@@ -47,29 +48,32 @@ def get_label_counts(dataset: pd.DataFrame) -> dict[str, int]:
         for label, count in counts.items()
     }
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Ingest a local CICIDS2017 CSV sample."
-    )
-    parser.add_argument(
-        "--input-csv",
-        type=Path,
-        default=DEFAULT_INPUT_CSV,
-        help="Path to a local CICIDS2017 CSV file.",
-    )
-    parser.add_argument(
-        "--output-csv",
-        type=Path,
-        default=DEFAULT_OUTPUT_CSV,
-        help="Path where the processed CIC sample should be written.",
-    )
-    parser.add_argument(
-        "--max-rows",
-        type=int,
-        default=DEFAULT_MAX_ROWS,
-        help="Maximum number of rows to keep in the sample.",
-    )
-    return parser.parse_args()
+def find_cic_csv_files(input_dir: Path) -> list[Path]:
+    if not input_dir.exists():
+        raise FileNotFoundError(f"CIC input directory not found: {input_dir}")
+
+    files = sorted(input_dir.glob("*.csv"))
+
+    if not files:
+        raise FileNotFoundError(f"No CIC CSV files found in: {input_dir}")
+
+    return files
+
+def load_cic_csv_files(paths: list[Path]) -> pd.DataFrame:
+    datasets = []
+
+    for path in paths:
+        dataset = load_cic_csv(path)
+        dataset["source_file"] = path.name
+        datasets.append(dataset)
+
+    combined = pd.concat(datasets, ignore_index=True)
+
+    if combined.empty:
+        raise ValueError("Combined CIC dataset contains no rows.")
+
+    return combined
+
 
 def sample_dataset(
     dataset: pd.DataFrame,
@@ -90,22 +94,6 @@ def sample_dataset(
     ).reset_index(drop=True)
 
 
-def sample_dataset(
-    dataset: pd.DataFrame,
-    max_rows: int,
-    random_seed: int = 42,
-) -> pd.DataFrame:
-    if max_rows <= 0:
-        raise ValueError("max_rows must be greater than zero.")
-
-    if len(dataset) <= max_rows:
-        return dataset.copy()
-
-    return dataset.sample(
-        n=max_rows,
-        random_state=random_seed, 
-    ).reset_index(drop=True)
-
 
 def write_cic_sample(
     dataset: pd.DataFrame,
@@ -116,11 +104,35 @@ def write_cic_sample(
     return output_path
 
 
-def main() -> None:
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Ingest a local CICIDS2017 CSV sample."
+    )
+    parser.add_argument(
+        "--input-dir",
+        type=Path,
+        default=DEFAULT_INPUT_DIR,
+        help="Directory containing local CICIDS2017 CSV files.",
+    )
+    parser.add_argument(
+        "--output-csv",
+        type=Path,
+        default=DEFAULT_OUTPUT_CSV,
+        help="Path where the processed CIC sample should be written.",
+    )
+    parser.add_argument(
+        "--max-rows",
+        type=int,
+        default=DEFAULT_MAX_ROWS,
+        help="Maximum number of rows to keep in the sample.",
+    )
+    return parser.parse_args()
 
+def main() -> None:
     args = parse_args()
 
-    dataset = load_cic_csv(args.input_csv)
+    csv_files = find_cic_csv_files(args.input_dir)
+    dataset = load_cic_csv_files(csv_files)
     original_label_counts = get_label_counts(dataset)
 
     sampled_dataset = sample_dataset(
@@ -134,13 +146,13 @@ def main() -> None:
         output_path=args.output_csv,
     )
 
-    print("Input CSV:", args.input_csv)
+    print("Input directory:", args.input_dir)
+    print("CSV files:", len(csv_files))
     print("Output CSV:", output_path)
     print("Max rows:", args.max_rows)
     print("Loaded rows:", len(dataset))
     print("Loaded columns:", len(dataset.columns))
     print("Sample rows:", len(sampled_dataset))
-    print("First columns:", list(sampled_dataset.columns[:10]))
     print("Original label counts:", original_label_counts)
     print("Sample label counts:", sampled_label_counts)
 

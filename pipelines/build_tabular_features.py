@@ -23,6 +23,7 @@ CATEGORICAL_NUMERIC_FEATURES = {
 
 EXCLUDED_COLUMNS = {
     "label",
+    "source_file",
 }
 
 def validate_label_column(dataset: pd.DataFrame) -> None:

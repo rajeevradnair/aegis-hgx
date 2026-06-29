@@ -57,6 +57,18 @@ def load_metrics_values(metrics_path: str | Path) -> dict[str, Any]:
     return metrics
 
 
+def build_optional_file_metadata(path: str | None) -> dict[str, str | None]:
+    if path is None:
+        return {
+            "path": None,
+            "sha256": None,
+        }
+
+    return {
+        "path": path,
+        "sha256": sha256_file(path),
+    }
+
 def build_lineage_manifest(
     lineage_input: LineageManifestInput,
 ) -> dict[str, Any]:
@@ -119,12 +131,9 @@ def build_lineage_manifest(
                 "path": lineage_input.training_config_path,
                 "sha256": sha256_file(lineage_input.training_config_path),
             },
-            "data_generation_config": {
-                "path": lineage_input.data_generation_config_path,
-                "sha256": sha256_file(
-                    lineage_input.data_generation_config_path
-                ),
-            },
+            "data_generation_config": build_optional_file_metadata(
+                lineage_input.data_generation_config_path
+            ),
         },
         "metrics": {
             "metrics_path": lineage_input.metrics_path,

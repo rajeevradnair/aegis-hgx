@@ -23,8 +23,8 @@ def test_ingest_cic_sample_script_writes_processed_sample() -> None:
         [
             sys.executable,
             "pipelines/ingest_cic_sample.py",
-            "--input-csv",
-            str(input_csv),
+            "--input-dir",
+            str(input_csv.parent),
             "--output-csv",
             str(output_csv),
             "--max-rows",

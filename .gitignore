@@ -28,6 +28,10 @@ data/*
 data/processed/*
 !data/processed/.gitignore
 !data/processed/*.dvc
+!data/processed/cicids2017/
+data/processed/cicids2017/*
+!data/processed/cicids2017/.gitignore
+!data/processed/cicids2017/*.dvc
 data/raw/
 data/interim/
 data/external/
