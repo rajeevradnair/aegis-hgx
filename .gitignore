@@ -22,9 +22,14 @@ env/
 htmlcov/
 
 # Local data
+# Data artifacts
+data/*
+!data/processed/
+data/processed/*
+!data/processed/.gitignore
+!data/processed/*.dvc
 data/raw/
 data/interim/
-data/processed/
 data/external/
 *.csv
 *.parquet

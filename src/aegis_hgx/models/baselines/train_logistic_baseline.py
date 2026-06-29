@@ -32,8 +32,20 @@ from sklearn.metrics import (
 )
 import matplotlib.pyplot as plt
 
+from aegis_hgx.models.baselines.lineage import (
+    LineageManifestInput,
+    build_lineage_manifest,
+    write_lineage_manifest,
+)
+
 
 CONFIG_PATH = "configs/baseline_logistic.yaml"
+DEFAULT_DATA_GENERATION_CONFIG_PATH = Path("configs/data_generation.yaml")
+DEFAULT_TRAINING_DATA_DVC_PATH = Path("data/processed/synthetic_events.csv.dvc")
+DEFAULT_LINEAGE_MANIFEST_PATH = Path(
+    "artifacts/lineage/logistic_baseline_manifest.json"
+)
+
 
 def load_training_config(config_path: str) -> dict[str, Any]:
     path = Path(config_path)
@@ -377,11 +389,62 @@ def main() -> None:
         confusion_matrix = np.array(metrics["confusion_matrix"])
         fig, ax = plt.subplots()
         ConfusionMatrixDisplay(confusion_matrix=confusion_matrix, display_labels=["Class 0", "Class 1"]).plot(ax=ax)
-
         mlflow.log_figure(
             fig,
             "run_evidence/metrics_report/confusion_matrix.png",
         )
+        plt.close(fig)
+
+        lineage_input = LineageManifestInput(
+            model_name="aegis_hgx_logistic_baseline",
+            model_version="logistic_baseline_v1",
+            model_type="logistic_regression",
+            model_artifact_path=str(model_path),
+            training_data_path=config.data.input_path,
+            training_data_dvc_path=str(DEFAULT_TRAINING_DATA_DVC_PATH),
+            training_config_path=str(config_path),
+            data_generation_config_path=str(
+                DEFAULT_DATA_GENERATION_CONFIG_PATH
+            ),
+            metrics_path=str(metrics_path),
+            mlflow_experiment_name=config.experiment_tracking.experiment_name,
+            mlflow_experiment_id=str(experiment_id),
+            mlflow_run_id=run.info.run_id,
+            mlflow_tracking_uri=mlflow.get_tracking_uri(),
+            training_entrypoint=(
+                "aegis_hgx.models.baselines.train_logistic_baseline"
+            ),
+            training_command=(
+                "python -m "
+                "aegis_hgx.models.baselines.train_logistic_baseline "
+                f"--config {config_path}"
+            ),
+            feature_store_provider="local_snapshot",
+            feature_snapshot_id="synthetic_events_v1",
+            offline_store_path=config.data.input_path,
+        )
+
+        lineage_manifest = build_lineage_manifest(lineage_input)
+        lineage_manifest_path = write_lineage_manifest(
+            lineage_manifest,
+            DEFAULT_LINEAGE_MANIFEST_PATH,
+        )
+
+        mlflow.log_artifact(
+            str(lineage_manifest_path),
+            artifact_path="run_evidence/lineage",
+        )
+
+        print(
+            "Lineage manifest saved locally:",
+            lineage_manifest_path,
+        )
+        print(
+            "Lineage manifest logged in MLflow:",
+            f"{run.info.artifact_uri}/run_evidence/lineage",
+        )
+
+
 
 if __name__ == "__main__":
     main()
