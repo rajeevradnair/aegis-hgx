@@ -33,5 +33,23 @@ jobs:
       - name: Train synthetic baseline model
         run: python -m aegis_hgx.models.baselines.train_logistic_baseline --config configs/baseline_logistic.yaml
 
+      - name: Prepare CIC fixture data
+        run: |
+          mkdir -p data/external/cicids2017
+          cp tests/fixtures/cicids2017/ci_cic_fixture.csv data/external/cicids2017/ci_cic_fixture.csv
+
+      - name: Ingest CIC fixture data
+        run: python pipelines/ingest_cic_sample.py --input-dir data/external/cicids2017 --max-rows 10000
+
+      - name: Build CIC tabular features
+        run: python pipelines/build_tabular_features.py
+
+      - name: Train CIC logistic model
+        run: python -m aegis_hgx.models.baselines.train_logistic_cic --config configs/logistic_cic.yaml
+
+
+      - name: Train CIC XGBoost model
+        run: python -m aegis_hgx.models.baselines.train_xgboost_cic --config configs/xgboost_cic.yaml
+
       - name: Run tests
         run: python -m pytest -ra
