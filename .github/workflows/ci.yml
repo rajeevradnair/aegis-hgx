@@ -47,9 +47,11 @@ jobs:
       - name: Train CIC logistic model
         run: python -m aegis_hgx.models.baselines.train_logistic_cic --config configs/logistic_cic.yaml
 
-
       - name: Train CIC XGBoost model
         run: python -m aegis_hgx.models.baselines.train_xgboost_cic --config configs/xgboost_cic.yaml
+
+      - name: Train CIC MLP model
+        run: python -m aegis_hgx.models.baselines.train_mlp_cic --config configs/mlp_cic.yaml
 
       - name: Run tests
         run: python -m pytest -ra
