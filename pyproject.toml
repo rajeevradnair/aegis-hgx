@@ -12,6 +12,7 @@ dependencies = [
     "mlflow>=3.0,<4.0",
     "dvc>=3.0",
     "evidently>=0.7,<0.8",
+    "xgboost>=2.0,<3.0",
 ]
 
 [project.optional-dependencies]
