@@ -36,6 +36,11 @@ data/raw/
 data/interim/
 data/external/
 *.csv
+# Test fixtures
+!tests/
+!tests/fixtures/
+!tests/fixtures/cicids2017/
+!tests/fixtures/cicids2017/*.csv
 *.parquet
 *.jsonl
 *.pkl
