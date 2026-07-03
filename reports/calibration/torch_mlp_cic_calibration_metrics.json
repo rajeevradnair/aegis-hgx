@@ -1,0 +1,30 @@
+{
+  "model_name": "torch_mlp_cic_baseline",
+  "model_family": "torch_mlp",
+  "dataset": "cicids2017",
+  "split_type": "train_validation_test",
+  "evaluated_split": "test",
+  "test_rows": 200,
+  "test_positive_rows": 37,
+  "test_negative_rows": 163,
+  "calibration": {
+    "brier_score": 0.03855550289154053,
+    "expected_calibration_error": 0.06675993317738177,
+    "n_bins": 10,
+    "strategy": "uniform"
+  },
+  "probability_summary": {
+    "min_probability": 0.0,
+    "max_probability": 0.9999998807907104,
+    "mean_probability": 0.24585841596126556,
+    "median_probability": 0.01625976152718067
+  },
+  "artifact_paths": {
+    "metrics_path": "reports/calibration/torch_mlp_cic_calibration_metrics.json",
+    "bins_path": "reports/calibration/torch_mlp_cic_calibration_bins.csv",
+    "reliability_diagram_path": "reports/figures/torch_mlp_cic_reliability_diagram.png",
+    "probability_histogram_path": "reports/figures/torch_mlp_cic_probability_histogram.png",
+    "model_path": "artifacts/models/torch_mlp_cic_baseline.pt",
+    "scaler_path": "artifacts/models/torch_mlp_cic_scaler.joblib"
+  }
+}

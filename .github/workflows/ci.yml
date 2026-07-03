@@ -56,5 +56,8 @@ jobs:
       - name: Train CIC PyTorch MLP diagnostic model
         run: python -m aegis_hgx.models.baselines.train_torch_mlp_cic --config configs/torch_mlp_cic.yaml
 
+      - name: Run CIC calibration report
+        run: python -m aegis_hgx.evaluation.torch_mlp_calibration_cic_report --config configs/torch_mlp_calibration_cic.yaml
+        
       - name: Run tests
         run: python -m pytest -ra

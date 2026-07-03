@@ -1,0 +1,23 @@
+data:
+  input_path: data/processed/cicids2017/cic_tabular_features.csv
+  target_column: target
+
+split:
+  validation_size: 0.2
+  test_size: 0.2
+  random_seed: 42
+
+model:
+  model_path: artifacts/models/torch_mlp_cic_baseline.pt
+  scaler_path: artifacts/models/torch_mlp_cic_scaler.joblib
+  model_family: torch_mlp
+
+calibration:
+  n_bins: 10
+  strategy: uniform
+
+outputs:
+  metrics_path: reports/calibration/torch_mlp_cic_calibration_metrics.json
+  bins_path: reports/calibration/torch_mlp_cic_calibration_bins.csv
+  reliability_diagram_path: reports/figures/torch_mlp_cic_reliability_diagram.png
+  probability_histogram_path: reports/figures/torch_mlp_cic_probability_histogram.png
