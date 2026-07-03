@@ -12,7 +12,6 @@ dependencies = [
     "mlflow>=3.0,<4.0",
     "dvc>=3.0",
     "evidently>=0.7,<0.8",
-    "xgboost>=2.0,<3.0",
 ]
 
 [project.optional-dependencies]
@@ -21,6 +20,8 @@ ml = [
     "pandas>=2.2.0",
     "scikit-learn>=1.4.0",
     "boto3",
+    "xgboost>=2.0,<3.0",
+    "torch",
 ]
 
 serving = [

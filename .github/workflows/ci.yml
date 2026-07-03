@@ -53,5 +53,8 @@ jobs:
       - name: Train CIC MLP model
         run: python -m aegis_hgx.models.baselines.train_mlp_cic --config configs/mlp_cic.yaml
 
+      - name: Train CIC PyTorch MLP diagnostic model
+        run: python -m aegis_hgx.models.baselines.train_torch_mlp_cic --config configs/torch_mlp_cic.yaml
+
       - name: Run tests
         run: python -m pytest -ra

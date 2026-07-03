@@ -1,0 +1,43 @@
+data:
+  input_path: data/processed/cicids2017/cic_tabular_features.csv
+  target_column: target
+
+split:
+  validation_size: 0.2
+  test_size: 0.2
+  random_seed: 42
+
+model:
+  hidden_dim_1: 64
+  hidden_dim_2: 32
+  dropout: 0.2
+
+training:
+  epochs: 30
+  batch_size: 128
+  learning_rate: 0.001
+  weight_decay: 0.0001
+
+thresholds:
+  start: 0.05
+  stop: 0.95
+  step: 0.05
+
+outputs:
+  metrics_path: reports/torch_mlp_cic_train_test_validation_metrics.json
+  epoch_history_path: reports/torch_mlp_cic_epoch_history.json
+  threshold_history_path: reports/torch_mlp_cic_epoch_probability_threshold_history.csv
+  model_path: artifacts/models/torch_mlp_cic_baseline.pt
+  scaler_path: artifacts/models/torch_mlp_cic_scaler.joblib
+  figure_dir: reports/figures
+  loss_by_epoch_path: reports/figures/torch_mlp_loss_by_epoch.png
+  pr_auc_by_epoch_path: reports/figures/torch_mlp_pr_auc_by_epoch.png
+  roc_auc_by_epoch_path: reports/figures/torch_mlp_roc_auc_by_epoch.png
+  threshold_f1_by_threshold_path: reports/figures/torch_mlp_threshold_f1_by_probability_threshold.png
+  final_test_precision_recall_curve_path: reports/figures/torch_mlp_final_test_precision_recall_curve.png
+  final_test_roc_curve_path: reports/figures/torch_mlp_final_test_roc_curve.png
+
+experiment_tracking:
+  experiment_name: aegis-hgx-torch-mlp-cic-baseline
+  uri: sqlite:///mlflow/mlflow.db
+  artifact_root: mlflow/mlruns

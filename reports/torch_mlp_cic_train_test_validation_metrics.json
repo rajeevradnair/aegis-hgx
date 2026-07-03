@@ -1,0 +1,56 @@
+{
+  "model_name": "torch_mlp_cic_baseline",
+  "dataset": "cicids2017",
+  "split_type": "train_validation_test",
+  "train_rows": 640,
+  "validation_rows": 160,
+  "test_rows": 200,
+  "train_positive_rows": 119,
+  "validation_positive_rows": 30,
+  "test_positive_rows": 37,
+  "test_negative_rows": 163,
+  "threshold_independent_metrics": {
+    "test_loss": 0.2349448949098587,
+    "test_pr_auc": 0.9719355581578704,
+    "test_roc_auc": 0.9872326314044105
+  },
+  "default_threshold": 0.5,
+  "default_threshold_metrics": {
+    "test_accuracy": 0.95,
+    "test_precision": 0.8,
+    "test_recall": 0.972972972972973,
+    "test_f1": 0.8780487804878049,
+    "test_true_positive": 36,
+    "test_false_positive": 9,
+    "test_true_negative": 154,
+    "test_false_negative": 1,
+    "test_confusion_matrix": [
+      [
+        154,
+        9
+      ],
+      [
+        1,
+        36
+      ]
+    ]
+  },
+  "best_validation_epoch": 30,
+  "best_validation_metric": "validation_pr_auc",
+  "best_validation_pr_auc": 0.899680204135624,
+  "best_validation_roc_auc": 0.9020512820512822,
+  "selected_threshold": 0.5,
+  "selected_threshold_reason": "Default threshold used for baseline comparability. Threshold tuning is handled in a later evaluation step.",
+  "artifact_paths": {
+    "model_path": "artifacts/models/torch_mlp_cic_baseline.pt",
+    "scaler_path": "artifacts/models/torch_mlp_cic_scaler.joblib",
+    "epoch_history_path": "reports/torch_mlp_cic_epoch_history.json",
+    "threshold_history_path": "reports/torch_mlp_cic_epoch_probability_threshold_history.csv",
+    "loss_by_epoch_path": "reports/figures/torch_mlp_loss_by_epoch.png",
+    "pr_auc_by_epoch_path": "reports/figures/torch_mlp_pr_auc_by_epoch.png",
+    "roc_auc_by_epoch_path": "reports/figures/torch_mlp_roc_auc_by_epoch.png",
+    "threshold_f1_by_threshold_path": "reports/figures/torch_mlp_threshold_f1_by_probability_threshold.png",
+    "final_test_precision_recall_curve_path": "reports/figures/torch_mlp_final_test_precision_recall_curve.png",
+    "final_test_roc_curve_path": "reports/figures/torch_mlp_final_test_roc_curve.png"
+  }
+}

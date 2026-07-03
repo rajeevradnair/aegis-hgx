@@ -354,6 +354,8 @@ def main() -> None:
             ],
         )
 
+        print("#######", mlp_classifier, type(mlp_classifier))
+
         mlflow.log_artifacts(
             str(DEFAULT_MLFLOW_MODEL_PATH),
             artifact_path="run_evidence/mlflow_model",
