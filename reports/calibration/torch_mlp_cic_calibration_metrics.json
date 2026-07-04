@@ -4,20 +4,20 @@
   "dataset": "cicids2017",
   "split_type": "train_validation_test",
   "evaluated_split": "test",
-  "test_rows": 2000,
-  "test_positive_rows": 402,
-  "test_negative_rows": 1598,
+  "test_rows": 200,
+  "test_positive_rows": 37,
+  "test_negative_rows": 163,
   "calibration": {
-    "brier_score": 0.024275507777929306,
-    "expected_calibration_error": 0.028570310922339553,
+    "brier_score": 0.024574868381023407,
+    "expected_calibration_error": 0.04354731483617797,
     "n_bins": 10,
     "strategy": "uniform"
   },
   "probability_summary": {
     "min_probability": 0.0,
     "max_probability": 1.0,
-    "mean_probability": 0.22798459231853485,
-    "median_probability": 0.0006000544526614249
+    "mean_probability": 0.22291570901870728,
+    "median_probability": 0.00019419004092924297
   },
   "artifact_paths": {
     "metrics_path": "reports/calibration/torch_mlp_cic_calibration_metrics.json",

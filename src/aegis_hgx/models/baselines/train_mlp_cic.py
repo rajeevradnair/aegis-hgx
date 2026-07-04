@@ -149,7 +149,7 @@ def build_model(config: TrainingConfig) -> Pipeline:
         alpha=0.0001,
         learning_rate_init=0.001,
         max_iter=config.model.max_iter,
-        early_stopping=True,
+        early_stopping=False,
         random_state=config.split.random_seed,
     )
 

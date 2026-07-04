@@ -2,43 +2,43 @@
   "model_name": "torch_mlp_cic_baseline",
   "dataset": "cicids2017",
   "split_type": "train_validation_test",
-  "train_rows": 6400,
-  "validation_rows": 1600,
-  "test_rows": 2000,
-  "train_positive_rows": 1287,
-  "validation_positive_rows": 322,
-  "test_positive_rows": 402,
-  "test_negative_rows": 1598,
+  "train_rows": 640,
+  "validation_rows": 160,
+  "test_rows": 200,
+  "train_positive_rows": 119,
+  "validation_positive_rows": 30,
+  "test_positive_rows": 37,
+  "test_negative_rows": 163,
   "threshold_independent_metrics": {
-    "test_loss": 1.6807318925857544,
-    "test_pr_auc": 0.9850013853997247,
-    "test_roc_auc": 0.9903283955690884
+    "test_loss": 0.22924499213695526,
+    "test_pr_auc": 0.9786132714590581,
+    "test_roc_auc": 0.988227491294976
   },
   "default_threshold": 0.5,
   "default_threshold_metrics": {
-    "test_accuracy": 0.965,
-    "test_precision": 0.8640350877192983,
-    "test_recall": 0.9800995024875622,
-    "test_f1": 0.9184149184149184,
-    "test_true_positive": 394,
-    "test_false_positive": 62,
-    "test_true_negative": 1536,
-    "test_false_negative": 8,
+    "test_accuracy": 0.955,
+    "test_precision": 0.8181818181818182,
+    "test_recall": 0.972972972972973,
+    "test_f1": 0.8888888888888891,
+    "test_true_positive": 36,
+    "test_false_positive": 8,
+    "test_true_negative": 155,
+    "test_false_negative": 1,
     "test_confusion_matrix": [
       [
-        1536,
-        62
+        155,
+        8
       ],
       [
-        8,
-        394
+        1,
+        36
       ]
     ]
   },
   "best_validation_epoch": 30,
   "best_validation_metric": "validation_pr_auc",
-  "best_validation_pr_auc": 0.9863129938114458,
-  "best_validation_roc_auc": 0.9956186393724668,
+  "best_validation_pr_auc": 0.9008168378418897,
+  "best_validation_roc_auc": 0.9087179487179488,
   "selected_threshold": 0.5,
   "selected_threshold_reason": "Default threshold used for baseline comparability. Threshold tuning is handled in a later evaluation step.",
   "artifact_paths": {
