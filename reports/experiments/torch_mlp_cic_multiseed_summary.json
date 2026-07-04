@@ -1,0 +1,153 @@
+{
+  "model_name": "torch_mlp_cic_baseline",
+  "dataset": "cicids2017",
+  "experiment_type": "multi_seed_stability",
+  "evaluated_split": "test",
+  "seed_count": 5,
+  "seeds": [
+    7,
+    11,
+    13,
+    17,
+    19
+  ],
+  "split": {
+    "validation_size": 0.2,
+    "test_size": 0.2
+  },
+  "training": {
+    "epochs": 20,
+    "batch_size": 128,
+    "learning_rate": 0.001,
+    "weight_decay": 0.0001
+  },
+  "evaluation": {
+    "threshold": 0.5
+  },
+  "metrics": {
+    "final_train_loss": {
+      "count": 5,
+      "mean": 0.1577448033541441,
+      "std": 0.010441837341796502,
+      "min": 0.14907043747603893,
+      "max": 0.17472531467676164,
+      "standard_error": 0.004669731621250536,
+      "ci95_lower": 0.14859212937649305,
+      "ci95_upper": 0.16689747733179514
+    },
+    "test_loss": {
+      "count": 5,
+      "mean": 0.41892051696777344,
+      "std": 0.32918436993268657,
+      "min": 0.12453494966030121,
+      "max": 0.9016053676605225,
+      "standard_error": 0.147215725659985,
+      "ci95_lower": 0.13037769467420285,
+      "ci95_upper": 0.7074633392613441
+    },
+    "roc_auc": {
+      "count": 5,
+      "mean": 0.9928276327997061,
+      "std": 0.002256075504503679,
+      "min": 0.9905120828896816,
+      "max": 0.9962888934551274,
+      "standard_error": 0.0010089476380884719,
+      "ci95_lower": 0.9908500954290527,
+      "ci95_upper": 0.9948051701703595
+    },
+    "pr_auc": {
+      "count": 5,
+      "mean": 0.9809239061890581,
+      "std": 0.0035777592669638653,
+      "min": 0.9763979022364624,
+      "max": 0.9853025068766367,
+      "standard_error": 0.0016000225856122041,
+      "ci95_lower": 0.9777878619212582,
+      "ci95_upper": 0.984059950456858
+    },
+    "accuracy": {
+      "count": 5,
+      "mean": 0.9598000000000001,
+      "std": 0.0017888543819998474,
+      "min": 0.958,
+      "max": 0.9625,
+      "standard_error": 0.000800000000000007,
+      "ci95_lower": 0.9582320000000001,
+      "ci95_upper": 0.9613680000000001
+    },
+    "precision": {
+      "count": 5,
+      "mean": 0.8410094907657797,
+      "std": 0.006540024764125819,
+      "min": 0.8354430379746836,
+      "max": 0.8516129032258064,
+      "standard_error": 0.002924787989423472,
+      "ci95_lower": 0.8352769063065096,
+      "ci95_upper": 0.8467420752250497
+    },
+    "recall": {
+      "count": 5,
+      "mean": 0.9865671641791044,
+      "std": 0.00222494326119386,
+      "min": 0.9850746268656716,
+      "max": 0.9900497512437811,
+      "standard_error": 0.000995024875621908,
+      "ci95_lower": 0.9846169154228854,
+      "ci95_upper": 0.9885174129353234
+    },
+    "f1": {
+      "count": 5,
+      "mean": 0.9079788764384429,
+      "std": 0.003738030477665374,
+      "min": 0.9041095890410958,
+      "max": 0.9134948096885813,
+      "standard_error": 0.001671698050005157,
+      "ci95_lower": 0.9047023482604327,
+      "ci95_upper": 0.911255404616453
+    },
+    "true_positive": {
+      "count": 5,
+      "mean": 396.6,
+      "std": 0.8944271909999159,
+      "min": 396.0,
+      "max": 398.0,
+      "standard_error": 0.39999999999999997,
+      "ci95_lower": 395.81600000000003,
+      "ci95_upper": 397.384
+    },
+    "false_positive": {
+      "count": 5,
+      "mean": 75.0,
+      "std": 3.6742346141747673,
+      "min": 69.0,
+      "max": 78.0,
+      "standard_error": 1.6431676725154982,
+      "ci95_lower": 71.77939136186963,
+      "ci95_upper": 78.22060863813037
+    },
+    "true_negative": {
+      "count": 5,
+      "mean": 1523.0,
+      "std": 3.6742346141747673,
+      "min": 1520.0,
+      "max": 1529.0,
+      "standard_error": 1.6431676725154982,
+      "ci95_lower": 1519.7793913618696,
+      "ci95_upper": 1526.2206086381304
+    },
+    "false_negative": {
+      "count": 5,
+      "mean": 5.4,
+      "std": 0.8944271909999159,
+      "min": 4.0,
+      "max": 6.0,
+      "standard_error": 0.39999999999999997,
+      "ci95_lower": 4.6160000000000005,
+      "ci95_upper": 6.184
+    }
+  },
+  "artifact_paths": {
+    "per_seed_metrics_path": "reports/experiments/torch_mlp_cic_multiseed_runs.csv",
+    "summary_metrics_path": "reports/experiments/torch_mlp_cic_multiseed_summary.json"
+  }
+}

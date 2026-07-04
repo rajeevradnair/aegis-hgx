@@ -1,0 +1,35 @@
+data:
+  input_path: data/processed/cicids2017/cic_tabular_features.csv
+  target_column: target
+
+experiment:
+  model_name: torch_mlp_cic_baseline
+  dataset: cicids2017
+  seeds:
+    - 7
+    - 11
+    - 13
+    - 17
+    - 19
+
+split:
+  validation_size: 0.2
+  test_size: 0.2
+
+model:
+  hidden_dim_1: 64
+  hidden_dim_2: 32
+  dropout: 0.2
+
+training:
+  epochs: 20
+  batch_size: 128
+  learning_rate: 0.001
+  weight_decay: 0.0001
+
+evaluation:
+  threshold: 0.5
+
+outputs:
+  per_seed_metrics_path: reports/experiments/torch_mlp_cic_multiseed_runs.csv
+  summary_metrics_path: reports/experiments/torch_mlp_cic_multiseed_summary.json

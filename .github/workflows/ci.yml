@@ -58,6 +58,9 @@ jobs:
 
       - name: Run CIC calibration report
         run: python -m aegis_hgx.evaluation.torch_mlp_calibration_cic_report --config configs/torch_mlp_calibration_cic.yaml
-        
+
+      - name: Run CIC PyTorch MLP seed stability experiment
+        run: python -m aegis_hgx.experiments.run_torch_mlp_multiseed_runs_cic --config configs/torch_mlp_multiseed_runs_cic.yaml
+
       - name: Run tests
         run: python -m pytest -ra
