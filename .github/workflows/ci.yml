@@ -62,5 +62,8 @@ jobs:
       - name: Run CIC PyTorch MLP seed stability experiment
         run: python -m aegis_hgx.experiments.run_torch_mlp_multiseed_runs_cic --config configs/torch_mlp_multiseed_runs_cic.yaml
 
+      - name: Build CIC baseline comparison report
+        run: python -m aegis_hgx.reports.build_baseline_comparison_report --config configs/baseline_comparison_report.yaml
+
       - name: Run tests
         run: python -m pytest -ra
