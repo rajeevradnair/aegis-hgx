@@ -1,0 +1,46 @@
+release:
+  title: AEGIS-HGX Release 2 - Baseline Laboratory
+  output_path: reports/release_2_baseline_laboratory.md
+  phase_name: Baseline Laboratory
+  dataset: cicids2017
+
+inputs:
+  model_metrics:
+    logistic_cic:
+      path: reports/logistic_cic_metrics.json
+      display_name: Logistic Regression CIC Baseline
+      model_family: linear
+    xgboost_cic:
+      path: reports/xgboost_cic_metrics.json
+      display_name: XGBoost CIC Baseline
+      model_family: gradient_boosted_trees
+    sklearn_mlp_cic:
+      path: reports/mlp_cic_metrics.json
+      display_name: Scikit-learn MLP CIC Baseline
+      model_family: neural_network
+    torch_mlp_cic:
+      path: reports/torch_mlp_cic_train_test_validation_metrics.json
+      display_name: PyTorch MLP CIC Diagnostic Baseline
+      model_family: neural_network
+
+  calibration_metrics:
+    path: reports/calibration/torch_mlp_cic_calibration_metrics.json
+    display_name: PyTorch MLP Calibration Analysis
+
+  seed_stability:
+    path: reports/experiments/torch_mlp_cic_multiseed_summary.json
+    display_name: PyTorch MLP Seed Stability
+
+  baseline_comparison_report:
+    path: reports/baseline_comparison_report.md
+    display_name: Baseline Comparison Report
+
+sections:
+  include_release_summary: true
+  include_artifact_inventory: true
+  include_model_summary: true
+  include_calibration_summary: true
+  include_seed_stability_summary: true
+  include_graph_readiness: true
+  include_limitations: true
+  include_next_phase_handoff: true
