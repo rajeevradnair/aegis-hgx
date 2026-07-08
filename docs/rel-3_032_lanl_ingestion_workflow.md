@@ -89,3 +89,34 @@ The real LANL files are large and should not be committed to GitHub.
 CI validates the ingestion logic using temporary gzipped LANL-style files created inside the test.
 
 This keeps CI fast, reproducible, and independent of local private data.
+
+DVC Data Versioning
+
+The real LANL files and generated parquet outputs should be versioned with DVC, not committed directly to Git.
+
+DVC-tracked paths:
+
+data/external/lanl
+data/processed/lanl
+
+Git should track the DVC metadata files:
+
+data/external/lanl.dvc
+data/processed/lanl.dvc
+
+Git should not track the raw .txt.gz files or generated .parquet files.
+
+Initial local setup:
+
+dvc init
+dvc add data/external/lanl
+python pipelines/ingest_lanl_sample.py --config configs/lanl_ingest.yaml
+dvc add data/processed/lanl
+
+Useful commands:
+
+dvc status
+dvc push
+dvc pull
+
+A remote DVC store can be added later, preferably S3, after the AWS deployment phase begins.
