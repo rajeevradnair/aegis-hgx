@@ -65,5 +65,8 @@ jobs:
       - name: Build CIC baseline comparison report
         run: python -m aegis_hgx.reports.build_baseline_comparison_report --config configs/baseline_comparison_report.yaml
 
+      - name: Test LANL ingestion pipeline
+        run: python -m pytest tests/test_ingest_lanl_sample.py -ra
+
       - name: Run tests
         run: python -m pytest -ra

@@ -1,0 +1,6 @@
+outs:
+- md5: df6eaaee233517d0921b91afba2a2dd5.dir
+  size: 421818260
+  nfiles: 6
+  hash: md5
+  path: lanl

@@ -34,7 +34,18 @@ data/processed/cicids2017/*
 !data/processed/cicids2017/*.dvc
 data/raw/
 data/interim/
-data/external/
+
+data/external/*
+!data/external/
+!data/external/*.dvc
+!data/external/lanl.dvc
+
+# Large local LANL payloads
+/data/external/lanl/**
+/data/processed/lanl/**
+
+# Keep DVC pointer files trackable
+!data/processed/lanl.dvc
 *.csv
 # Test fixtures
 !tests/
@@ -44,6 +55,7 @@ data/external/
 *.parquet
 *.jsonl
 *.pkl
+
 
 # Model and experiment artifacts
 artifacts/
