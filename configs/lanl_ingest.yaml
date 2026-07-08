@@ -1,0 +1,40 @@
+input:
+  directory: data/external/lanl
+  compression: gzip
+  max_rows_per_file: null
+
+files:
+  auth:
+    filename: auth.txt.gz
+    output_filename: auth.parquet
+    event_family: authentication
+
+  dns:
+    filename: dns.txt.gz
+    output_filename: dns.parquet
+    event_family: dns
+
+  flows:
+    filename: flows.txt.gz
+    output_filename: flows.parquet
+    event_family: network_flow
+
+  proc:
+    filename: proc.txt.gz
+    output_filename: proc.parquet
+    event_family: process
+
+  redteam:
+    filename: redteam.txt.gz
+    output_filename: redteam.parquet
+    event_family: redteam_ground_truth
+
+output:
+  directory: data/processed/lanl
+  manifest_filename: ingest_manifest.json
+
+schema:
+  add_source_file_column: true
+  add_event_family_column: true
+  add_row_number_column: true
+  normalize_column_names: true
