@@ -14,6 +14,8 @@ inspection:
   component_sample_size: 10
   redteam_sample_size: 25
   max_edges_for_visual_sample: 5000
-
+  invalid_edge_policy: warn
+  invalid_edge_sample_size: 25
+  
 graph:
   type: multidigraph
