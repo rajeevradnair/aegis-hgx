@@ -1,0 +1,14 @@
+input:
+  directory: data/processed/lanl
+  clean_events_filename: clean_all_events.parquet
+
+output:
+  directory: data/processed/lanl
+  graph_nodes_filename: graph_nodes.parquet
+  graph_edges_filename: graph_edges.parquet
+  manifest_filename: graph_table_manifest.json
+
+schema:
+  node_key_separator: "::"
+  unknown_value: unknown
+  default_node_label: 0
