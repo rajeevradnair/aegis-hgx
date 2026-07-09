@@ -12,6 +12,7 @@ dependencies = [
     "mlflow>=3.0,<4.0",
     "dvc>=3.0",
     "evidently>=0.7,<0.8",
+    "networkx>=3.2",
 ]
 
 [project.optional-dependencies]

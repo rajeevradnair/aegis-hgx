@@ -1,0 +1,19 @@
+input:
+  directory: data/processed/lanl
+  graph_nodes_filename: graph_nodes.parquet
+  graph_edges_filename: graph_edges.parquet
+
+output:
+  directory: reports
+  markdown_report_filename: lanl_graph_profile.md
+  json_report_filename: lanl_graph_profile.json
+  top_nodes_filename: lanl_top_nodes.csv
+
+inspection:
+  top_k_nodes: 25
+  component_sample_size: 10
+  redteam_sample_size: 25
+  max_edges_for_visual_sample: 5000
+
+graph:
+  type: multidigraph
