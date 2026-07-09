@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 import argparse
+import json
+
 import networkx as nx
 import pandas as pd
 import yaml
@@ -891,6 +894,372 @@ def print_redteam_graph_profile(
     print(redteam_profile["redteam_edge_sample"])
 
 
+def make_json_safe(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {
+            str(key): make_json_safe(item)
+            for key, item in value.items()
+        }
+
+    if isinstance(value, list):
+        return [
+            make_json_safe(item)
+            for item in value
+        ]
+
+    if isinstance(value, tuple):
+        return [
+            make_json_safe(item)
+            for item in value
+        ]
+
+    if isinstance(value, set):
+        return [
+            make_json_safe(item)
+            for item in sorted(value)
+        ]
+
+    try:
+        if pd.isna(value):
+            return None
+    except (TypeError, ValueError):
+        pass
+
+    if hasattr(value, "item"):
+        return value.item()
+
+    return value
+
+
+def build_full_graph_profile(
+    basic_profile: dict[str, Any],
+    degree_profile: dict[str, Any],
+    structural_profile: dict[str, Any],
+    redteam_profile: dict[str, Any],
+    config: dict[str, Any],
+) -> dict[str, Any]:
+    return make_json_safe(
+        {
+            "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+            "phase": "graph_validation_before_modeling",
+            "purpose": (
+                "Inspect LANL graph structure before PyTorch Geometric "
+                "conversion and graph model training."
+            ),
+            "inspection_config": config["inspection"],
+            "basic_profile": basic_profile,
+            "degree_profile": degree_profile,
+            "structural_profile": structural_profile,
+            "redteam_profile": redteam_profile,
+        }
+    )
+
+
+def format_count_table(
+    title: str,
+    counts: dict[str, int],
+) -> str:
+    lines = [
+        f"## {title}",
+        "",
+        "| Value | Count |",
+        "|---|---:|",
+    ]
+
+    if not counts:
+        lines.append("| None | 0 |")
+    else:
+        for key, value in counts.items():
+            lines.append(f"| {key} | {value} |")
+
+    return "\n".join(lines)
+
+
+def format_key_value_table(
+    title: str,
+    values: dict[str, Any],
+) -> str:
+    lines = [
+        f"## {title}",
+        "",
+        "| Metric | Value |",
+        "|---|---:|",
+    ]
+
+    for key, value in values.items():
+        lines.append(f"| {key} | {value} |")
+
+    return "\n".join(lines)
+
+
+def format_top_nodes_table(
+    title: str,
+    rows: list[dict[str, Any]],
+) -> str:
+    lines = [
+        f"## {title}",
+        "",
+        "| Node ID | Node Key | Entity Type | Label | Total Degree | In Degree | Out Degree |",
+        "|---:|---|---|---:|---:|---:|---:|",
+    ]
+
+    if not rows:
+        lines.append("| 0 | None | None | 0 | 0 | 0 | 0 |")
+        return "\n".join(lines)
+
+    for row in rows:
+        lines.append(
+            "| "
+            f"{row['node_id']} | "
+            f"{row['node_key']} | "
+            f"{row['entity_type']} | "
+            f"{row['label']} | "
+            f"{row['total_degree']} | "
+            f"{row['in_degree']} | "
+            f"{row['out_degree']} |"
+        )
+
+    return "\n".join(lines)
+
+
+def build_markdown_report(
+    profile: dict[str, Any],
+) -> str:
+    basic = profile["basic_profile"]
+    degree = profile["degree_profile"]
+    structural = profile["structural_profile"]
+    redteam = profile["redteam_profile"]
+
+    sections = [
+        "# LANL Graph Inspection Profile",
+        "",
+        f"Generated at UTC: `{profile['generated_at_utc']}`",
+        "",
+        "This report validates the LANL graph before PyTorch Geometric conversion and graph model training.",
+        "",
+        "This is graph validation and evaluation preparation, not inference.",
+        "",
+        format_key_value_table(
+            title="Graph Summary",
+            values=basic["graph"],
+        ),
+        "",
+        format_key_value_table(
+            title="Table Counts",
+            values=basic["table_counts"],
+        ),
+        "",
+        format_count_table(
+            title="Node Type Counts",
+            counts=basic["node_type_counts"],
+        ),
+        "",
+        format_count_table(
+            title="Node Label Counts",
+            counts=basic["node_label_counts"],
+        ),
+        "",
+        format_count_table(
+            title="Edge Type Counts",
+            counts=basic["edge_type_counts"],
+        ),
+        "",
+        format_count_table(
+            title="Event Family Counts",
+            counts=basic["event_family_counts"],
+        ),
+        "",
+        format_count_table(
+            title="Edge Label Counts",
+            counts=basic["edge_label_counts"],
+        ),
+        "",
+        format_key_value_table(
+            title="Total Degree Summary",
+            values=degree["degree_summary"]["total_degree"],
+        ),
+        "",
+        format_key_value_table(
+            title="In Degree Summary",
+            values=degree["degree_summary"]["in_degree"],
+        ),
+        "",
+        format_key_value_table(
+            title="Out Degree Summary",
+            values=degree["degree_summary"]["out_degree"],
+        ),
+        "",
+        format_top_nodes_table(
+            title="Top Total-Degree Nodes",
+            rows=degree["top_total_degree_nodes"],
+        ),
+        "",
+        format_top_nodes_table(
+            title="Top In-Degree Nodes",
+            rows=degree["top_in_degree_nodes"],
+        ),
+        "",
+        format_top_nodes_table(
+            title="Top Out-Degree Nodes",
+            rows=degree["top_out_degree_nodes"],
+        ),
+        "",
+        "## Connected Components",
+        "",
+        "### Weak Components",
+        "",
+        format_key_value_table(
+            title="Weak Component Summary",
+            values=structural["connected_components"]["weak_components"],
+        ),
+        "",
+        "### Strong Components",
+        "",
+        format_key_value_table(
+            title="Strong Component Summary",
+            values=structural["connected_components"]["strong_components"],
+        ),
+        "",
+        format_key_value_table(
+            title="Isolated Nodes",
+            values={
+                "isolated_node_count": structural["isolated_nodes"][
+                    "isolated_node_count"
+                ]
+            },
+        ),
+        "",
+        format_key_value_table(
+            title="Self-Loops",
+            values={
+                "self_loop_count": structural["self_loops"][
+                    "self_loop_count"
+                ]
+            },
+        ),
+        "",
+        format_key_value_table(
+            title="Red-Team Summary",
+            values={
+                "redteam_edge_count": redteam["redteam_edge_count"],
+                "redteam_participating_node_count": redteam[
+                    "redteam_participating_node_count"
+                ],
+                "redteam_labeled_node_count": redteam[
+                    "redteam_labeled_node_count"
+                ],
+            },
+        ),
+        "",
+        format_count_table(
+            title="Red-Team Edge Type Counts",
+            counts=redteam["redteam_edge_type_counts"],
+        ),
+        "",
+        format_count_table(
+            title="Red-Team Node Type Counts",
+            counts=redteam["redteam_node_type_counts"],
+        ),
+    ]
+
+    return "\n".join(sections) + "\n"
+
+
+def build_top_nodes_output_table(
+    degree_profile: dict[str, Any],
+) -> pd.DataFrame:
+    rows = []
+
+    sections = {
+        "total_degree": degree_profile["top_total_degree_nodes"],
+        "in_degree": degree_profile["top_in_degree_nodes"],
+        "out_degree": degree_profile["top_out_degree_nodes"],
+    }
+
+    for degree_kind, node_rows in sections.items():
+        for rank, row in enumerate(node_rows, start=1):
+            output_row = dict(row)
+            output_row["degree_kind"] = degree_kind
+            output_row["rank"] = rank
+            rows.append(output_row)
+
+    if not rows:
+        return pd.DataFrame(
+            columns=[
+                "degree_kind",
+                "rank",
+                "node_id",
+                "node_key",
+                "entity_type",
+                "entity_name",
+                "label",
+                "total_degree",
+                "in_degree",
+                "out_degree",
+            ]
+        )
+
+    return pd.DataFrame(rows)[
+        [
+            "degree_kind",
+            "rank",
+            "node_id",
+            "node_key",
+            "entity_type",
+            "entity_name",
+            "label",
+            "total_degree",
+            "in_degree",
+            "out_degree",
+        ]
+    ]
+
+
+def write_graph_profile_outputs(
+    profile: dict[str, Any],
+    degree_profile: dict[str, Any],
+    paths: dict[str, Path],
+) -> dict[str, Path]:
+    markdown_report = build_markdown_report(profile)
+    paths["markdown_report"].write_text(
+        markdown_report,
+        encoding="utf-8",
+    )
+
+    paths["json_report"].write_text(
+        json.dumps(
+            profile,
+            indent=2,
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
+
+    top_nodes = build_top_nodes_output_table(degree_profile)
+    top_nodes.to_csv(
+        paths["top_nodes"],
+        index=False,
+    )
+
+    return {
+        "markdown_report": paths["markdown_report"],
+        "json_report": paths["json_report"],
+        "top_nodes": paths["top_nodes"],
+    }
+
+
+def print_output_paths(
+    output_paths: dict[str, Path],
+) -> None:
+    print("Graph inspection outputs")
+    print(
+        {
+            key: str(path)
+            for key, path in output_paths.items()
+        }
+    )
+
+
 def build_paths(config: dict[str, Any]) -> dict[str, Path]:
     input_directory = Path(config["input"]["directory"])
     output_directory = Path(config["output"]["directory"])
@@ -1051,6 +1420,21 @@ def main() -> None:
 
     print_redteam_graph_profile(redteam_profile)
 
+    full_profile = build_full_graph_profile(
+        basic_profile=basic_profile,
+        degree_profile=degree_profile,
+        structural_profile=structural_profile,
+        redteam_profile=redteam_profile,
+        config=config,
+    )
+
+    output_paths = write_graph_profile_outputs(
+        profile=full_profile,
+        degree_profile=degree_profile,
+        paths=paths,
+    )
+
+    print_output_paths(output_paths)
 
 
 if __name__ == "__main__":

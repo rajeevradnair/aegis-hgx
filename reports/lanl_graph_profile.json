@@ -1,0 +1,1234 @@
+{
+  "basic_profile": {
+    "edge_label_counts": {
+      "0": 4000000,
+      "1": 749
+    },
+    "edge_type_counts": {
+      "authentication:auth_authmap": 8560,
+      "authentication:auth_logoff": 430915,
+      "authentication:auth_logon": 416219,
+      "authentication:auth_tgs": 98266,
+      "authentication:auth_tgt": 46040,
+      "dns:dns_resolution": 1000000,
+      "network_flow:network_flow": 1000000,
+      "process:process_end": 287401,
+      "process:process_start": 712599,
+      "redteam_ground_truth:redteam_activity": 749
+    },
+    "event_family_counts": {
+      "authentication": 1000000,
+      "dns": 1000000,
+      "network_flow": 1000000,
+      "process": 1000000,
+      "redteam_ground_truth": 749
+    },
+    "graph": {
+      "edge_count": 4000749,
+      "graph_type": "MultiDiGraph",
+      "is_directed": true,
+      "is_multigraph": true,
+      "node_count": 24102
+    },
+    "node_label_counts": {
+      "0": 23697,
+      "1": 405
+    },
+    "node_type_counts": {
+      "host": 9446,
+      "host_or_domain": 1775,
+      "process": 1895,
+      "user": 10986
+    },
+    "table_counts": {
+      "edge_rows": 4000749,
+      "invalid_edge_rows": 0,
+      "node_rows": 24102,
+      "unique_edge_ids": 4000749,
+      "unique_node_ids": 24102,
+      "valid_edge_rows": 4000749
+    }
+  },
+  "degree_profile": {
+    "degree_summary": {
+      "in_degree": {
+        "max": 200239,
+        "mean": 165.9924072691063,
+        "median": 0.0,
+        "min": 0,
+        "p95": 218.95000000000073
+      },
+      "out_degree": {
+        "max": 60117,
+        "mean": 165.9924072691063,
+        "median": 13.0,
+        "min": 0,
+        "p95": 473.0
+      },
+      "total_degree": {
+        "max": 200239,
+        "mean": 331.9848145382126,
+        "median": 35.0,
+        "min": 1,
+        "p95": 765.0
+      }
+    },
+    "top_in_degree_nodes": [
+      {
+        "entity_name": "P16",
+        "entity_type": "process",
+        "in_degree": 200239,
+        "label": 0,
+        "node_id": 11765,
+        "node_key": "process::P16",
+        "out_degree": 0,
+        "total_degree": 200239
+      },
+      {
+        "entity_name": "C586",
+        "entity_type": "host",
+        "in_degree": 167662,
+        "label": 1,
+        "node_id": 7208,
+        "node_key": "host::C586",
+        "out_degree": 32189,
+        "total_degree": 199851
+      },
+      {
+        "entity_name": "C706",
+        "entity_type": "host_or_domain",
+        "in_degree": 161338,
+        "label": 0,
+        "node_id": 11092,
+        "node_key": "host_or_domain::C706",
+        "out_degree": 0,
+        "total_degree": 161338
+      },
+      {
+        "entity_name": "P5",
+        "entity_type": "process",
+        "in_degree": 137478,
+        "label": 0,
+        "node_id": 12693,
+        "node_key": "process::P5",
+        "out_degree": 0,
+        "total_degree": 137478
+      },
+      {
+        "entity_name": "C1685",
+        "entity_type": "host_or_domain",
+        "in_degree": 130981,
+        "label": 0,
+        "node_id": 9925,
+        "node_key": "host_or_domain::C1685",
+        "out_degree": 0,
+        "total_degree": 130981
+      },
+      {
+        "entity_name": "C1707",
+        "entity_type": "host_or_domain",
+        "in_degree": 125828,
+        "label": 0,
+        "node_id": 9940,
+        "node_key": "host_or_domain::C1707",
+        "out_degree": 0,
+        "total_degree": 125828
+      },
+      {
+        "entity_name": "C457",
+        "entity_type": "host",
+        "in_degree": 114603,
+        "label": 1,
+        "node_id": 6400,
+        "node_key": "host::C457",
+        "out_degree": 15348,
+        "total_degree": 129951
+      },
+      {
+        "entity_name": "C5030",
+        "entity_type": "host_or_domain",
+        "in_degree": 96381,
+        "label": 0,
+        "node_id": 10902,
+        "node_key": "host_or_domain::C5030",
+        "out_degree": 0,
+        "total_degree": 96381
+      },
+      {
+        "entity_name": "C467",
+        "entity_type": "host",
+        "in_degree": 95406,
+        "label": 1,
+        "node_id": 6465,
+        "node_key": "host::C467",
+        "out_degree": 29585,
+        "total_degree": 124991
+      },
+      {
+        "entity_name": "C529",
+        "entity_type": "host",
+        "in_degree": 94522,
+        "label": 1,
+        "node_id": 6864,
+        "node_key": "host::C529",
+        "out_degree": 18398,
+        "total_degree": 112920
+      },
+      {
+        "entity_name": "C612",
+        "entity_type": "host",
+        "in_degree": 91846,
+        "label": 1,
+        "node_id": 7362,
+        "node_key": "host::C612",
+        "out_degree": 17644,
+        "total_degree": 109490
+      },
+      {
+        "entity_name": "C625",
+        "entity_type": "host",
+        "in_degree": 82242,
+        "label": 1,
+        "node_id": 7434,
+        "node_key": "host::C625",
+        "out_degree": 11159,
+        "total_degree": 93401
+      },
+      {
+        "entity_name": "C1065",
+        "entity_type": "host",
+        "in_degree": 75748,
+        "label": 1,
+        "node_id": 193,
+        "node_key": "host::C1065",
+        "out_degree": 16786,
+        "total_degree": 92534
+      },
+      {
+        "entity_name": "C528",
+        "entity_type": "host",
+        "in_degree": 71780,
+        "label": 1,
+        "node_id": 6858,
+        "node_key": "host::C528",
+        "out_degree": 26789,
+        "total_degree": 98569
+      },
+      {
+        "entity_name": "P25",
+        "entity_type": "process",
+        "in_degree": 56657,
+        "label": 0,
+        "node_id": 12422,
+        "node_key": "process::P25",
+        "out_degree": 0,
+        "total_degree": 56657
+      },
+      {
+        "entity_name": "C22841",
+        "entity_type": "host_or_domain",
+        "in_degree": 44135,
+        "label": 0,
+        "node_id": 10366,
+        "node_key": "host_or_domain::C22841",
+        "out_degree": 0,
+        "total_degree": 44135
+      },
+      {
+        "entity_name": "C5721",
+        "entity_type": "host",
+        "in_degree": 43994,
+        "label": 0,
+        "node_id": 7135,
+        "node_key": "host::C5721",
+        "out_degree": 25230,
+        "total_degree": 69224
+      },
+      {
+        "entity_name": "C457",
+        "entity_type": "host_or_domain",
+        "in_degree": 42144,
+        "label": 0,
+        "node_id": 10843,
+        "node_key": "host_or_domain::C457",
+        "out_degree": 0,
+        "total_degree": 42144
+      },
+      {
+        "entity_name": "C1685",
+        "entity_type": "host",
+        "in_degree": 39922,
+        "label": 0,
+        "node_id": 2325,
+        "node_key": "host::C1685",
+        "out_degree": 40883,
+        "total_degree": 80805
+      },
+      {
+        "entity_name": "C5720",
+        "entity_type": "host",
+        "in_degree": 37491,
+        "label": 0,
+        "node_id": 7134,
+        "node_key": "host::C5720",
+        "out_degree": 14649,
+        "total_degree": 52140
+      },
+      {
+        "entity_name": "C586",
+        "entity_type": "host_or_domain",
+        "in_degree": 37071,
+        "label": 0,
+        "node_id": 11008,
+        "node_key": "host_or_domain::C586",
+        "out_degree": 0,
+        "total_degree": 37071
+      },
+      {
+        "entity_name": "P21",
+        "entity_type": "process",
+        "in_degree": 36265,
+        "label": 0,
+        "node_id": 12321,
+        "node_key": "process::P21",
+        "out_degree": 0,
+        "total_degree": 36265
+      },
+      {
+        "entity_name": "P9",
+        "entity_type": "process",
+        "in_degree": 34691,
+        "label": 0,
+        "node_id": 13040,
+        "node_key": "process::P9",
+        "out_degree": 0,
+        "total_degree": 34691
+      },
+      {
+        "entity_name": "C528",
+        "entity_type": "host_or_domain",
+        "in_degree": 34124,
+        "label": 0,
+        "node_id": 10922,
+        "node_key": "host_or_domain::C528",
+        "out_degree": 0,
+        "total_degree": 34124
+      },
+      {
+        "entity_name": "C1707",
+        "entity_type": "host",
+        "in_degree": 30362,
+        "label": 0,
+        "node_id": 2391,
+        "node_key": "host::C1707",
+        "out_degree": 30912,
+        "total_degree": 61274
+      }
+    ],
+    "top_out_degree_nodes": [
+      {
+        "entity_name": "C16712",
+        "entity_type": "host",
+        "in_degree": 3108,
+        "label": 0,
+        "node_id": 2281,
+        "node_key": "host::C16712",
+        "out_degree": 60117,
+        "total_degree": 63225
+      },
+      {
+        "entity_name": "C3380",
+        "entity_type": "host",
+        "in_degree": 20,
+        "label": 1,
+        "node_id": 5572,
+        "node_key": "host::C3380",
+        "out_degree": 47941,
+        "total_degree": 47961
+      },
+      {
+        "entity_name": "C1685",
+        "entity_type": "host",
+        "in_degree": 39922,
+        "label": 0,
+        "node_id": 2325,
+        "node_key": "host::C1685",
+        "out_degree": 40883,
+        "total_degree": 80805
+      },
+      {
+        "entity_name": "C586",
+        "entity_type": "host",
+        "in_degree": 167662,
+        "label": 1,
+        "node_id": 7208,
+        "node_key": "host::C586",
+        "out_degree": 32189,
+        "total_degree": 199851
+      },
+      {
+        "entity_name": "C1707",
+        "entity_type": "host",
+        "in_degree": 30362,
+        "label": 0,
+        "node_id": 2391,
+        "node_key": "host::C1707",
+        "out_degree": 30912,
+        "total_degree": 61274
+      },
+      {
+        "entity_name": "C467",
+        "entity_type": "host",
+        "in_degree": 95406,
+        "label": 1,
+        "node_id": 6465,
+        "node_key": "host::C467",
+        "out_degree": 29585,
+        "total_degree": 124991
+      },
+      {
+        "entity_name": "U22@DOM1",
+        "entity_type": "user",
+        "in_degree": 0,
+        "label": 0,
+        "node_id": 22668,
+        "node_key": "user::U22@DOM1",
+        "out_degree": 28749,
+        "total_degree": 28749
+      },
+      {
+        "entity_name": "C2492",
+        "entity_type": "host",
+        "in_degree": 316,
+        "label": 0,
+        "node_id": 4583,
+        "node_key": "host::C2492",
+        "out_degree": 27364,
+        "total_degree": 27680
+      },
+      {
+        "entity_name": "C528",
+        "entity_type": "host",
+        "in_degree": 71780,
+        "label": 1,
+        "node_id": 6858,
+        "node_key": "host::C528",
+        "out_degree": 26789,
+        "total_degree": 98569
+      },
+      {
+        "entity_name": "C1685$@DOM1",
+        "entity_type": "user",
+        "in_degree": 0,
+        "label": 0,
+        "node_id": 13948,
+        "node_key": "user::C1685$@DOM1",
+        "out_degree": 26392,
+        "total_degree": 26392
+      },
+      {
+        "entity_name": "C5721",
+        "entity_type": "host",
+        "in_degree": 43994,
+        "label": 0,
+        "node_id": 7135,
+        "node_key": "host::C5721",
+        "out_degree": 25230,
+        "total_degree": 69224
+      },
+      {
+        "entity_name": "U66@DOM1",
+        "entity_type": "user",
+        "in_degree": 0,
+        "label": 1,
+        "node_id": 23678,
+        "node_key": "user::U66@DOM1",
+        "out_degree": 20590,
+        "total_degree": 20590
+      },
+      {
+        "entity_name": "C3173",
+        "entity_type": "host",
+        "in_degree": 97,
+        "label": 1,
+        "node_id": 5422,
+        "node_key": "host::C3173",
+        "out_degree": 20009,
+        "total_degree": 20106
+      },
+      {
+        "entity_name": "C5802",
+        "entity_type": "host",
+        "in_degree": 12608,
+        "label": 0,
+        "node_id": 7180,
+        "node_key": "host::C5802",
+        "out_degree": 19887,
+        "total_degree": 32495
+      },
+      {
+        "entity_name": "C599$@DOM1",
+        "entity_type": "user",
+        "in_degree": 0,
+        "label": 0,
+        "node_id": 16878,
+        "node_key": "user::C599$@DOM1",
+        "out_degree": 19376,
+        "total_degree": 19376
+      },
+      {
+        "entity_name": "C529",
+        "entity_type": "host",
+        "in_degree": 94522,
+        "label": 1,
+        "node_id": 6864,
+        "node_key": "host::C529",
+        "out_degree": 18398,
+        "total_degree": 112920
+      },
+      {
+        "entity_name": "ANONYMOUS LOGON@C586",
+        "entity_type": "user",
+        "in_degree": 0,
+        "label": 0,
+        "node_id": 13201,
+        "node_key": "user::ANONYMOUS LOGON@C586",
+        "out_degree": 17934,
+        "total_degree": 17934
+      },
+      {
+        "entity_name": "C612",
+        "entity_type": "host",
+        "in_degree": 91846,
+        "label": 1,
+        "node_id": 7362,
+        "node_key": "host::C612",
+        "out_degree": 17644,
+        "total_degree": 109490
+      },
+      {
+        "entity_name": "C1624$@DOM1",
+        "entity_type": "user",
+        "in_degree": 0,
+        "label": 0,
+        "node_id": 13889,
+        "node_key": "user::C1624$@DOM1",
+        "out_degree": 16987,
+        "total_degree": 16987
+      },
+      {
+        "entity_name": "C1065",
+        "entity_type": "host",
+        "in_degree": 75748,
+        "label": 1,
+        "node_id": 193,
+        "node_key": "host::C1065",
+        "out_degree": 16786,
+        "total_degree": 92534
+      },
+      {
+        "entity_name": "C706",
+        "entity_type": "host",
+        "in_degree": 21536,
+        "label": 1,
+        "node_id": 7895,
+        "node_key": "host::C706",
+        "out_degree": 16484,
+        "total_degree": 38020
+      },
+      {
+        "entity_name": "C457",
+        "entity_type": "host",
+        "in_degree": 114603,
+        "label": 1,
+        "node_id": 6400,
+        "node_key": "host::C457",
+        "out_degree": 15348,
+        "total_degree": 129951
+      },
+      {
+        "entity_name": "C1114$@DOM1",
+        "entity_type": "user",
+        "in_degree": 0,
+        "label": 0,
+        "node_id": 13337,
+        "node_key": "user::C1114$@DOM1",
+        "out_degree": 15141,
+        "total_degree": 15141
+      },
+      {
+        "entity_name": "C5720",
+        "entity_type": "host",
+        "in_degree": 37491,
+        "label": 0,
+        "node_id": 7134,
+        "node_key": "host::C5720",
+        "out_degree": 14649,
+        "total_degree": 52140
+      },
+      {
+        "entity_name": "C5778",
+        "entity_type": "host",
+        "in_degree": 781,
+        "label": 0,
+        "node_id": 7164,
+        "node_key": "host::C5778",
+        "out_degree": 14364,
+        "total_degree": 15145
+      }
+    ],
+    "top_total_degree_nodes": [
+      {
+        "entity_name": "P16",
+        "entity_type": "process",
+        "in_degree": 200239,
+        "label": 0,
+        "node_id": 11765,
+        "node_key": "process::P16",
+        "out_degree": 0,
+        "total_degree": 200239
+      },
+      {
+        "entity_name": "C586",
+        "entity_type": "host",
+        "in_degree": 167662,
+        "label": 1,
+        "node_id": 7208,
+        "node_key": "host::C586",
+        "out_degree": 32189,
+        "total_degree": 199851
+      },
+      {
+        "entity_name": "C706",
+        "entity_type": "host_or_domain",
+        "in_degree": 161338,
+        "label": 0,
+        "node_id": 11092,
+        "node_key": "host_or_domain::C706",
+        "out_degree": 0,
+        "total_degree": 161338
+      },
+      {
+        "entity_name": "P5",
+        "entity_type": "process",
+        "in_degree": 137478,
+        "label": 0,
+        "node_id": 12693,
+        "node_key": "process::P5",
+        "out_degree": 0,
+        "total_degree": 137478
+      },
+      {
+        "entity_name": "C1685",
+        "entity_type": "host_or_domain",
+        "in_degree": 130981,
+        "label": 0,
+        "node_id": 9925,
+        "node_key": "host_or_domain::C1685",
+        "out_degree": 0,
+        "total_degree": 130981
+      },
+      {
+        "entity_name": "C457",
+        "entity_type": "host",
+        "in_degree": 114603,
+        "label": 1,
+        "node_id": 6400,
+        "node_key": "host::C457",
+        "out_degree": 15348,
+        "total_degree": 129951
+      },
+      {
+        "entity_name": "C1707",
+        "entity_type": "host_or_domain",
+        "in_degree": 125828,
+        "label": 0,
+        "node_id": 9940,
+        "node_key": "host_or_domain::C1707",
+        "out_degree": 0,
+        "total_degree": 125828
+      },
+      {
+        "entity_name": "C467",
+        "entity_type": "host",
+        "in_degree": 95406,
+        "label": 1,
+        "node_id": 6465,
+        "node_key": "host::C467",
+        "out_degree": 29585,
+        "total_degree": 124991
+      },
+      {
+        "entity_name": "C529",
+        "entity_type": "host",
+        "in_degree": 94522,
+        "label": 1,
+        "node_id": 6864,
+        "node_key": "host::C529",
+        "out_degree": 18398,
+        "total_degree": 112920
+      },
+      {
+        "entity_name": "C612",
+        "entity_type": "host",
+        "in_degree": 91846,
+        "label": 1,
+        "node_id": 7362,
+        "node_key": "host::C612",
+        "out_degree": 17644,
+        "total_degree": 109490
+      },
+      {
+        "entity_name": "C528",
+        "entity_type": "host",
+        "in_degree": 71780,
+        "label": 1,
+        "node_id": 6858,
+        "node_key": "host::C528",
+        "out_degree": 26789,
+        "total_degree": 98569
+      },
+      {
+        "entity_name": "C5030",
+        "entity_type": "host_or_domain",
+        "in_degree": 96381,
+        "label": 0,
+        "node_id": 10902,
+        "node_key": "host_or_domain::C5030",
+        "out_degree": 0,
+        "total_degree": 96381
+      },
+      {
+        "entity_name": "C625",
+        "entity_type": "host",
+        "in_degree": 82242,
+        "label": 1,
+        "node_id": 7434,
+        "node_key": "host::C625",
+        "out_degree": 11159,
+        "total_degree": 93401
+      },
+      {
+        "entity_name": "C1065",
+        "entity_type": "host",
+        "in_degree": 75748,
+        "label": 1,
+        "node_id": 193,
+        "node_key": "host::C1065",
+        "out_degree": 16786,
+        "total_degree": 92534
+      },
+      {
+        "entity_name": "C1685",
+        "entity_type": "host",
+        "in_degree": 39922,
+        "label": 0,
+        "node_id": 2325,
+        "node_key": "host::C1685",
+        "out_degree": 40883,
+        "total_degree": 80805
+      },
+      {
+        "entity_name": "C5721",
+        "entity_type": "host",
+        "in_degree": 43994,
+        "label": 0,
+        "node_id": 7135,
+        "node_key": "host::C5721",
+        "out_degree": 25230,
+        "total_degree": 69224
+      },
+      {
+        "entity_name": "C16712",
+        "entity_type": "host",
+        "in_degree": 3108,
+        "label": 0,
+        "node_id": 2281,
+        "node_key": "host::C16712",
+        "out_degree": 60117,
+        "total_degree": 63225
+      },
+      {
+        "entity_name": "C1707",
+        "entity_type": "host",
+        "in_degree": 30362,
+        "label": 0,
+        "node_id": 2391,
+        "node_key": "host::C1707",
+        "out_degree": 30912,
+        "total_degree": 61274
+      },
+      {
+        "entity_name": "P25",
+        "entity_type": "process",
+        "in_degree": 56657,
+        "label": 0,
+        "node_id": 12422,
+        "node_key": "process::P25",
+        "out_degree": 0,
+        "total_degree": 56657
+      },
+      {
+        "entity_name": "C5720",
+        "entity_type": "host",
+        "in_degree": 37491,
+        "label": 0,
+        "node_id": 7134,
+        "node_key": "host::C5720",
+        "out_degree": 14649,
+        "total_degree": 52140
+      },
+      {
+        "entity_name": "C3380",
+        "entity_type": "host",
+        "in_degree": 20,
+        "label": 1,
+        "node_id": 5572,
+        "node_key": "host::C3380",
+        "out_degree": 47941,
+        "total_degree": 47961
+      },
+      {
+        "entity_name": "C22841",
+        "entity_type": "host_or_domain",
+        "in_degree": 44135,
+        "label": 0,
+        "node_id": 10366,
+        "node_key": "host_or_domain::C22841",
+        "out_degree": 0,
+        "total_degree": 44135
+      },
+      {
+        "entity_name": "C457",
+        "entity_type": "host_or_domain",
+        "in_degree": 42144,
+        "label": 0,
+        "node_id": 10843,
+        "node_key": "host_or_domain::C457",
+        "out_degree": 0,
+        "total_degree": 42144
+      },
+      {
+        "entity_name": "C706",
+        "entity_type": "host",
+        "in_degree": 21536,
+        "label": 1,
+        "node_id": 7895,
+        "node_key": "host::C706",
+        "out_degree": 16484,
+        "total_degree": 38020
+      },
+      {
+        "entity_name": "C586",
+        "entity_type": "host_or_domain",
+        "in_degree": 37071,
+        "label": 0,
+        "node_id": 11008,
+        "node_key": "host_or_domain::C586",
+        "out_degree": 0,
+        "total_degree": 37071
+      }
+    ]
+  },
+  "generated_at_utc": "2026-07-09T23:40:39.884913+00:00",
+  "inspection_config": {
+    "component_sample_size": 10,
+    "invalid_edge_policy": "warn",
+    "invalid_edge_sample_size": 25,
+    "max_edges_for_visual_sample": 5000,
+    "redteam_sample_size": 25,
+    "top_k_nodes": 25
+  },
+  "phase": "graph_validation_before_modeling",
+  "purpose": "Inspect LANL graph structure before PyTorch Geometric conversion and graph model training.",
+  "redteam_profile": {
+    "redteam_edge_count": 749,
+    "redteam_edge_sample": [
+      {
+        "destination_entity_type": "host",
+        "destination_node_id": 13,
+        "destination_node_key": "host::C1003",
+        "edge_id": "lanl_redteam_0",
+        "edge_type": "redteam_ground_truth:redteam_activity",
+        "event_family": "redteam_ground_truth",
+        "label": 1,
+        "source_entity_type": "user",
+        "source_node_id": 23615,
+        "source_node_key": "user::U620@DOM1",
+        "timestamp": 150885
+      },
+      {
+        "destination_entity_type": "host",
+        "destination_node_id": 5324,
+        "destination_node_key": "host::C305",
+        "edge_id": "lanl_redteam_1",
+        "edge_type": "redteam_ground_truth:redteam_activity",
+        "event_family": "redteam_ground_truth",
+        "label": 1,
+        "source_entity_type": "user",
+        "source_node_id": 23778,
+        "source_node_key": "user::U748@DOM1",
+        "timestamp": 151036
+      },
+      {
+        "destination_entity_type": "host",
+        "destination_node_id": 8021,
+        "destination_node_key": "host::C728",
+        "edge_id": "lanl_redteam_2",
+        "edge_type": "redteam_ground_truth:redteam_activity",
+        "event_family": "redteam_ground_truth",
+        "label": 1,
+        "source_entity_type": "user",
+        "source_node_id": 23778,
+        "source_node_key": "user::U748@DOM1",
+        "timestamp": 151648
+      },
+      {
+        "destination_entity_type": "host",
+        "destination_node_id": 559,
+        "destination_node_key": "host::C1173",
+        "edge_id": "lanl_redteam_3",
+        "edge_type": "redteam_ground_truth:redteam_activity",
+        "event_family": "redteam_ground_truth",
+        "label": 1,
+        "source_entity_type": "user",
+        "source_node_id": 23603,
+        "source_node_key": "user::U6115@DOM1",
+        "timestamp": 151993
+      },
+      {
+        "destination_entity_type": "host",
+        "destination_node_id": 5235,
+        "destination_node_key": "host::C294",
+        "edge_id": "lanl_redteam_4",
+        "edge_type": "redteam_ground_truth:redteam_activity",
+        "event_family": "redteam_ground_truth",
+        "label": 1,
+        "source_entity_type": "user",
+        "source_node_id": 23635,
+        "source_node_key": "user::U636@DOM1",
+        "timestamp": 153792
+      },
+      {
+        "destination_entity_type": "host",
+        "destination_node_id": 7117,
+        "destination_node_key": "host::C5693",
+        "edge_id": "lanl_redteam_5",
+        "edge_type": "redteam_ground_truth:redteam_activity",
+        "event_family": "redteam_ground_truth",
+        "label": 1,
+        "source_entity_type": "user",
+        "source_node_id": 23778,
+        "source_node_key": "user::U748@DOM1",
+        "timestamp": 155219
+      },
+      {
+        "destination_entity_type": "host",
+        "destination_node_id": 1769,
+        "destination_node_key": "host::C152",
+        "edge_id": "lanl_redteam_6",
+        "edge_type": "redteam_ground_truth:redteam_activity",
+        "event_family": "redteam_ground_truth",
+        "label": 1,
+        "source_entity_type": "user",
+        "source_node_id": 23778,
+        "source_node_key": "user::U748@DOM1",
+        "timestamp": 155399
+      },
+      {
+        "destination_entity_type": "host",
+        "destination_node_id": 4285,
+        "destination_node_key": "host::C2341",
+        "edge_id": "lanl_redteam_7",
+        "edge_type": "redteam_ground_truth:redteam_activity",
+        "event_family": "redteam_ground_truth",
+        "label": 1,
+        "source_entity_type": "user",
+        "source_node_id": 23778,
+        "source_node_key": "user::U748@DOM1",
+        "timestamp": 155460
+      },
+      {
+        "destination_entity_type": "host",
+        "destination_node_id": 5529,
+        "destination_node_key": "host::C332",
+        "edge_id": "lanl_redteam_8",
+        "edge_type": "redteam_ground_truth:redteam_activity",
+        "event_family": "redteam_ground_truth",
+        "label": 1,
+        "source_entity_type": "user",
+        "source_node_id": 23778,
+        "source_node_key": "user::U748@DOM1",
+        "timestamp": 155591
+      },
+      {
+        "destination_entity_type": "host",
+        "destination_node_id": 6210,
+        "destination_node_key": "host::C4280",
+        "edge_id": "lanl_redteam_9",
+        "edge_type": "redteam_ground_truth:redteam_activity",
+        "event_family": "redteam_ground_truth",
+        "label": 1,
+        "source_entity_type": "user",
+        "source_node_id": 23778,
+        "source_node_key": "user::U748@DOM1",
+        "timestamp": 156658
+      },
+      {
+        "destination_entity_type": "host",
+        "destination_node_id": 1668,
+        "destination_node_key": "host::C1493",
+        "edge_id": "lanl_redteam_10",
+        "edge_type": "redteam_ground_truth:redteam_activity",
+        "event_family": "redteam_ground_truth",
+        "label": 1,
+        "source_entity_type": "user",
+        "source_node_id": 23778,
+        "source_node_key": "user::U748@DOM1",
+        "timestamp": 210086
+      },
+      {
+        "destination_entity_type": "host",
+        "destination_node_id": 1668,
+        "destination_node_key": "host::C1493",
+        "edge_id": "lanl_redteam_11",
+        "edge_type": "redteam_ground_truth:redteam_activity",
+        "event_family": "redteam_ground_truth",
+        "label": 1,
+        "source_entity_type": "user",
+        "source_node_id": 23778,
+        "source_node_key": "user::U748@DOM1",
+        "timestamp": 210294
+      },
+      {
+        "destination_entity_type": "host",
+        "destination_node_id": 1668,
+        "destination_node_key": "host::C1493",
+        "edge_id": "lanl_redteam_12",
+        "edge_type": "redteam_ground_truth:redteam_activity",
+        "event_family": "redteam_ground_truth",
+        "label": 1,
+        "source_entity_type": "user",
+        "source_node_id": 23778,
+        "source_node_key": "user::U748@DOM1",
+        "timestamp": 210312
+      },
+      {
+        "destination_entity_type": "host",
+        "destination_node_id": 6704,
+        "destination_node_key": "host::C504",
+        "edge_id": "lanl_redteam_13",
+        "edge_type": "redteam_ground_truth:redteam_activity",
+        "event_family": "redteam_ground_truth",
+        "label": 1,
+        "source_entity_type": "user",
+        "source_node_id": 23778,
+        "source_node_key": "user::U748@DOM1",
+        "timestamp": 218418
+      },
+      {
+        "destination_entity_type": "host",
+        "destination_node_id": 1617,
+        "destination_node_key": "host::C148",
+        "edge_id": "lanl_redteam_14",
+        "edge_type": "redteam_ground_truth:redteam_activity",
+        "event_family": "redteam_ground_truth",
+        "label": 1,
+        "source_entity_type": "user",
+        "source_node_id": 23778,
+        "source_node_key": "user::U748@DOM1",
+        "timestamp": 227052
+      },
+      {
+        "destination_entity_type": "host",
+        "destination_node_id": 1617,
+        "destination_node_key": "host::C148",
+        "edge_id": "lanl_redteam_15",
+        "edge_type": "redteam_ground_truth:redteam_activity",
+        "event_family": "redteam_ground_truth",
+        "label": 1,
+        "source_entity_type": "user",
+        "source_node_id": 23778,
+        "source_node_key": "user::U748@DOM1",
+        "timestamp": 227408
+      },
+      {
+        "destination_entity_type": "host",
+        "destination_node_id": 1617,
+        "destination_node_key": "host::C148",
+        "edge_id": "lanl_redteam_16",
+        "edge_type": "redteam_ground_truth:redteam_activity",
+        "event_family": "redteam_ground_truth",
+        "label": 1,
+        "source_entity_type": "user",
+        "source_node_id": 23778,
+        "source_node_key": "user::U748@DOM1",
+        "timestamp": 227520
+      },
+      {
+        "destination_entity_type": "host",
+        "destination_node_id": 1617,
+        "destination_node_key": "host::C148",
+        "edge_id": "lanl_redteam_17",
+        "edge_type": "redteam_ground_truth:redteam_activity",
+        "event_family": "redteam_ground_truth",
+        "label": 1,
+        "source_entity_type": "user",
+        "source_node_id": 23778,
+        "source_node_key": "user::U748@DOM1",
+        "timestamp": 227780
+      },
+      {
+        "destination_entity_type": "host",
+        "destination_node_id": 1617,
+        "destination_node_key": "host::C148",
+        "edge_id": "lanl_redteam_18",
+        "edge_type": "redteam_ground_truth:redteam_activity",
+        "event_family": "redteam_ground_truth",
+        "label": 1,
+        "source_entity_type": "user",
+        "source_node_id": 23778,
+        "source_node_key": "user::U748@DOM1",
+        "timestamp": 228024
+      },
+      {
+        "destination_entity_type": "host",
+        "destination_node_id": 1617,
+        "destination_node_key": "host::C148",
+        "edge_id": "lanl_redteam_19",
+        "edge_type": "redteam_ground_truth:redteam_activity",
+        "event_family": "redteam_ground_truth",
+        "label": 1,
+        "source_entity_type": "user",
+        "source_node_id": 23778,
+        "source_node_key": "user::U748@DOM1",
+        "timestamp": 228150
+      },
+      {
+        "destination_entity_type": "host",
+        "destination_node_id": 4202,
+        "destination_node_key": "host::C231",
+        "edge_id": "lanl_redteam_20",
+        "edge_type": "redteam_ground_truth:redteam_activity",
+        "event_family": "redteam_ground_truth",
+        "label": 1,
+        "source_entity_type": "user",
+        "source_node_id": 22233,
+        "source_node_key": "user::U1723@DOM1",
+        "timestamp": 228642
+      },
+      {
+        "destination_entity_type": "host",
+        "destination_node_id": 4202,
+        "destination_node_key": "host::C231",
+        "edge_id": "lanl_redteam_21",
+        "edge_type": "redteam_ground_truth:redteam_activity",
+        "event_family": "redteam_ground_truth",
+        "label": 1,
+        "source_entity_type": "user",
+        "source_node_id": 22233,
+        "source_node_key": "user::U1723@DOM1",
+        "timestamp": 228658
+      },
+      {
+        "destination_entity_type": "host",
+        "destination_node_id": 4202,
+        "destination_node_key": "host::C231",
+        "edge_id": "lanl_redteam_22",
+        "edge_type": "redteam_ground_truth:redteam_activity",
+        "event_family": "redteam_ground_truth",
+        "label": 1,
+        "source_entity_type": "user",
+        "source_node_id": 22233,
+        "source_node_key": "user::U1723@DOM1",
+        "timestamp": 229046
+      },
+      {
+        "destination_entity_type": "host",
+        "destination_node_id": 13,
+        "destination_node_key": "host::C1003",
+        "edge_id": "lanl_redteam_23",
+        "edge_type": "redteam_ground_truth:redteam_activity",
+        "event_family": "redteam_ground_truth",
+        "label": 1,
+        "source_entity_type": "user",
+        "source_node_id": 22233,
+        "source_node_key": "user::U1723@DOM1",
+        "timestamp": 230395
+      },
+      {
+        "destination_entity_type": "host",
+        "destination_node_id": 6704,
+        "destination_node_key": "host::C504",
+        "edge_id": "lanl_redteam_24",
+        "edge_type": "redteam_ground_truth:redteam_activity",
+        "event_family": "redteam_ground_truth",
+        "label": 1,
+        "source_entity_type": "user",
+        "source_node_id": 23778,
+        "source_node_key": "user::U748@DOM1",
+        "timestamp": 234667
+      }
+    ],
+    "redteam_edge_type_counts": {
+      "redteam_ground_truth:redteam_activity": 749
+    },
+    "redteam_event_family_counts": {
+      "redteam_ground_truth": 749
+    },
+    "redteam_labeled_node_count": 405,
+    "redteam_node_type_counts": {
+      "host": 301,
+      "user": 104
+    },
+    "redteam_participating_node_count": 405
+  },
+  "structural_profile": {
+    "connected_components": {
+      "strong_components": {
+        "component_count": 21403,
+        "component_size_sample": [
+          2694,
+          5,
+          2,
+          2,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "largest_component_ratio": 0.1117749564351506,
+        "largest_component_size": 2694,
+        "smallest_component_size": 1
+      },
+      "weak_components": {
+        "component_count": 36,
+        "component_size_sample": [
+          24024,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          2
+        ],
+        "largest_component_ratio": 0.9967637540453075,
+        "largest_component_size": 24024,
+        "smallest_component_size": 2
+      }
+    },
+    "isolated_nodes": {
+      "isolated_node_count": 0,
+      "isolated_node_sample": []
+    },
+    "self_loops": {
+      "self_loop_count": 0,
+      "self_loop_sample": []
+    }
+  }
+}
