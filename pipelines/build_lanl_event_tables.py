@@ -667,6 +667,142 @@ def write_parquet_file(
     dataframe.to_parquet(output_path, index=False)
 
 
+def write_json_file(
+    payload: dict[str, Any],
+    output_path: Path,
+) -> None:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(
+        json.dumps(payload, indent=2),
+        encoding="utf-8",
+    )
+
+
+def get_common_event_columns() -> list[str]:
+    return [
+        "event_id",
+        "timestamp",
+        "event_family",
+        "event_type",
+        "source_entity",
+        "destination_entity",
+        "source_entity_type",
+        "destination_entity_type",
+        "event_result",
+        "label",
+        "source_file",
+        "row_number",
+    ]
+
+
+def build_combined_event_table(
+    output_paths: dict[str, Path],
+) -> dict[str, Any]:
+    common_columns = get_common_event_columns()
+
+    clean_table_keys = [
+        "clean_auth",
+        "clean_dns",
+        "clean_flows",
+        "clean_process",
+        "clean_redteam",
+    ]
+
+    clean_tables = []
+
+    for table_key in clean_table_keys:
+        dataframe = read_parquet_file(output_paths[table_key])
+
+        validate_columns(
+            dataframe=dataframe,
+            required_columns=common_columns,
+            table_name=table_key,
+        )
+
+        clean_tables.append(dataframe[common_columns])
+
+    combined = pd.concat(
+        clean_tables,
+        axis=0,
+        ignore_index=True,
+    )
+
+    combined = combined.sort_values(
+        by=["timestamp", "event_family", "event_id"],
+        kind="stable",
+    ).reset_index(drop=True)
+
+    write_parquet_file(
+        dataframe=combined,
+        output_path=output_paths["clean_all"],
+    )
+
+    event_family_counts = (
+        combined["event_family"]
+        .value_counts()
+        .sort_index()
+        .to_dict()
+    )
+
+    label_counts = (
+        combined["label"]
+        .value_counts()
+        .sort_index()
+        .to_dict()
+    )
+
+    return {
+        "table": "clean_all",
+        "output_path": str(output_paths["clean_all"]),
+        "rows": int(len(combined)),
+        "columns": list(combined.columns),
+        "event_family_counts": {
+            str(key): int(value)
+            for key, value in event_family_counts.items()
+        },
+        "label_counts": {
+            str(key): int(value)
+            for key, value in label_counts.items()
+        },
+    }
+
+def build_event_table_manifest(
+    config: dict[str, Any],
+    table_results: list[dict[str, Any]],
+    combined_result: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+        "input_directory": config["input"]["directory"],
+        "output_directory": config["output"]["directory"],
+        "table_count": len(table_results) + 1,
+        "individual_tables": table_results,
+        "combined_table": combined_result,
+    }
+
+
+def write_event_table_manifest(
+    config: dict[str, Any],
+    table_results: list[dict[str, Any]],
+    combined_result: dict[str, Any],
+) -> Path:
+    output_directory = Path(config["output"]["directory"])
+    manifest_path = output_directory / config["output"]["manifest_filename"]
+
+    manifest = build_event_table_manifest(
+        config=config,
+        table_results=table_results,
+        combined_result=combined_result,
+    )
+
+    write_json_file(
+        payload=manifest,
+        output_path=manifest_path,
+    )
+
+    return manifest_path
+
+
 def build_auth_event_table(
     input_paths: dict[str, Path],
     output_paths: dict[str, Path],
@@ -784,6 +920,19 @@ def main() -> None:
 
     for result in table_results:
         print("Built event table:", result)
+
+    combined_result = build_combined_event_table(
+        output_paths=output_paths,
+    )
+
+    manifest_path = write_event_table_manifest(
+        config=config,
+        table_results=table_results,
+        combined_result=combined_result,
+    )
+
+    print("Built combined event table:", combined_result)
+    print("Event table manifest path:", manifest_path)
 
 
 if __name__ == "__main__":
