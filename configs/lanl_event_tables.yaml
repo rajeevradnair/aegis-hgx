@@ -1,0 +1,24 @@
+input:
+  directory: data/processed/lanl
+  files:
+    auth: auth.parquet
+    dns: dns.parquet
+    flows: flows.parquet
+    proc: proc.parquet
+    redteam: redteam.parquet
+
+output:
+  directory: data/processed/lanl
+  files:
+    clean_auth: clean_auth_events.parquet
+    clean_dns: clean_dns_events.parquet
+    clean_flows: clean_flow_events.parquet
+    clean_process: clean_process_events.parquet
+    clean_redteam: clean_redteam_events.parquet
+    clean_all: clean_all_events.parquet
+  manifest_filename: event_table_manifest.json
+
+schema:
+  event_id_prefix: lanl
+  unknown_value: unknown
+  default_label: 0
