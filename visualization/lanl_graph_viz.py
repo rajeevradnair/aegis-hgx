@@ -539,6 +539,358 @@ def print_degree_profile(
     print(degree_profile["top_out_degree_nodes"])
 
 
+def summarize_component_sizes(
+    components: list[set[int]],
+    sample_size: int,
+) -> dict[str, Any]:
+    component_sizes = sorted(
+        [len(component) for component in components],
+        reverse=True,
+    )
+
+    if not component_sizes:
+        return {
+            "component_count": 0,
+            "largest_component_size": 0,
+            "smallest_component_size": 0,
+            "component_size_sample": [],
+        }
+
+    return {
+        "component_count": int(len(component_sizes)),
+        "largest_component_size": int(component_sizes[0]),
+        "smallest_component_size": int(component_sizes[-1]),
+        "component_size_sample": [
+            int(size)
+            for size in component_sizes[:sample_size]
+        ],
+    }
+
+
+def build_connected_component_profile(
+    graph: nx.MultiDiGraph,
+    config: dict[str, Any],
+) -> dict[str, Any]:
+    component_sample_size = int(config["inspection"]["component_sample_size"])
+
+    weak_components = [
+        set(component)
+        for component in nx.weakly_connected_components(graph)
+    ]
+    strong_components = [
+        set(component)
+        for component in nx.strongly_connected_components(graph)
+    ]
+
+    weak_summary = summarize_component_sizes(
+        components=weak_components,
+        sample_size=component_sample_size,
+    )
+    strong_summary = summarize_component_sizes(
+        components=strong_components,
+        sample_size=component_sample_size,
+    )
+
+    node_count = graph.number_of_nodes()
+
+    if node_count == 0:
+        largest_weak_component_ratio = 0.0
+        largest_strong_component_ratio = 0.0
+    else:
+        largest_weak_component_ratio = (
+            weak_summary["largest_component_size"] / node_count
+        )
+        largest_strong_component_ratio = (
+            strong_summary["largest_component_size"] / node_count
+        )
+
+    return {
+        "weak_components": {
+            **weak_summary,
+            "largest_component_ratio": float(largest_weak_component_ratio),
+        },
+        "strong_components": {
+            **strong_summary,
+            "largest_component_ratio": float(largest_strong_component_ratio),
+        },
+    }
+
+
+def build_isolated_node_profile(
+    graph: nx.MultiDiGraph,
+    nodes: pd.DataFrame,
+    config: dict[str, Any],
+) -> dict[str, Any]:
+    sample_size = int(config["inspection"]["component_sample_size"])
+
+    isolated_node_ids = [
+        int(node_id)
+        for node_id in nx.isolates(graph)
+    ]
+
+    isolated_nodes = nodes[
+        nodes["node_id"].astype("int64").isin(isolated_node_ids)
+    ].copy()
+
+    sample_columns = [
+        "node_id",
+        "node_key",
+        "entity_type",
+        "entity_name",
+        "label",
+    ]
+
+    isolated_sample = isolated_nodes[
+        sample_columns
+    ].head(sample_size).to_dict(orient="records")
+
+    return {
+        "isolated_node_count": int(len(isolated_node_ids)),
+        "isolated_node_sample": isolated_sample,
+    }
+
+
+def build_self_loop_profile(
+    graph: nx.MultiDiGraph,
+    config: dict[str, Any],
+) -> dict[str, Any]:
+    sample_size = int(config["inspection"]["component_sample_size"])
+
+    self_loop_edges = list(
+        nx.selfloop_edges(
+            graph,
+            keys=True,
+            data=True,
+        )
+    )
+
+    sample = []
+
+    for source_node_id, destination_node_id, edge_key, edge_data in self_loop_edges[
+        :sample_size
+    ]:
+        sample.append(
+            {
+                "source_node_id": int(source_node_id),
+                "destination_node_id": int(destination_node_id),
+                "edge_key": str(edge_key),
+                "edge_type": str(edge_data.get("edge_type")),
+                "event_family": str(edge_data.get("event_family")),
+                "label": int(edge_data.get("label", 0)),
+            }
+        )
+
+    return {
+        "self_loop_count": int(len(self_loop_edges)),
+        "self_loop_sample": sample,
+    }
+
+
+def build_structural_graph_profile(
+    graph: nx.MultiDiGraph,
+    nodes: pd.DataFrame,
+    config: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "connected_components": build_connected_component_profile(
+            graph=graph,
+            config=config,
+        ),
+        "isolated_nodes": build_isolated_node_profile(
+            graph=graph,
+            nodes=nodes,
+            config=config,
+        ),
+        "self_loops": build_self_loop_profile(
+            graph=graph,
+            config=config,
+        ),
+    }
+
+
+def print_structural_graph_profile(
+    structural_profile: dict[str, Any],
+) -> None:
+    print()
+    print("Structural graph profile")
+    print("Connected components:")
+    print(structural_profile["connected_components"])
+
+    print("Isolated nodes:")
+    print(structural_profile["isolated_nodes"])
+
+    print("Self-loops:")
+    print(structural_profile["self_loops"])
+
+
+def build_node_context_lookup(
+    nodes: pd.DataFrame,
+) -> dict[int, dict[str, Any]]:
+    required_columns = [
+        "node_id",
+        "node_key",
+        "entity_type",
+        "entity_name",
+        "label",
+    ]
+
+    validate_columns(
+        dataframe=nodes,
+        required_columns=required_columns,
+        table_name="graph_nodes",
+    )
+
+    lookup = {}
+
+    for _, row in nodes.iterrows():
+        node_id = int(row["node_id"])
+        lookup[node_id] = {
+            "node_key": str(row["node_key"]),
+            "entity_type": str(row["entity_type"]),
+            "entity_name": str(row["entity_name"]),
+            "label": int(row["label"]),
+        }
+
+    return lookup
+
+
+def filter_redteam_edges(
+    valid_edges: pd.DataFrame,
+) -> pd.DataFrame:
+    edge_labels = pd.to_numeric(
+        valid_edges["label"],
+        errors="coerce",
+    ).fillna(0).astype("int64")
+
+    return valid_edges[edge_labels == 1].copy()
+
+
+def build_redteam_edge_sample(
+    redteam_edges: pd.DataFrame,
+    nodes: pd.DataFrame,
+    config: dict[str, Any],
+) -> list[dict[str, Any]]:
+    sample_size = int(config["inspection"]["redteam_sample_size"])
+    node_lookup = build_node_context_lookup(nodes)
+
+    sample = []
+
+    ordered_edges = redteam_edges.sort_values(
+        by=["timestamp", "edge_id"],
+        kind="stable",
+    ).head(sample_size)
+
+    for _, row in ordered_edges.iterrows():
+        source_node_id = int(row["source_node_id"])
+        destination_node_id = int(row["destination_node_id"])
+
+        source_context = node_lookup.get(source_node_id, {})
+        destination_context = node_lookup.get(destination_node_id, {})
+
+        sample.append(
+            {
+                "edge_id": str(row["edge_id"]),
+                "timestamp": int(row["timestamp"]),
+                "edge_type": str(row["edge_type"]),
+                "event_family": str(row["event_family"]),
+                "source_node_id": source_node_id,
+                "destination_node_id": destination_node_id,
+                "source_node_key": str(source_context.get("node_key")),
+                "destination_node_key": str(destination_context.get("node_key")),
+                "source_entity_type": str(row["source_entity_type"]),
+                "destination_entity_type": str(row["destination_entity_type"]),
+                "label": int(row["label"]),
+            }
+        )
+
+    return sample
+
+
+def build_redteam_graph_profile(
+    valid_edges: pd.DataFrame,
+    nodes: pd.DataFrame,
+    config: dict[str, Any],
+) -> dict[str, Any]:
+    redteam_edges = filter_redteam_edges(valid_edges)
+
+    if redteam_edges.empty:
+        participating_node_ids: set[int] = set()
+    else:
+        source_node_ids = set(redteam_edges["source_node_id"].astype("int64"))
+        destination_node_ids = set(
+            redteam_edges["destination_node_id"].astype("int64")
+        )
+        participating_node_ids = source_node_ids | destination_node_ids
+
+    labeled_nodes = nodes[
+        pd.to_numeric(
+            nodes["label"],
+            errors="coerce",
+        ).fillna(0).astype("int64")
+        == 1
+    ].copy()
+
+    participating_nodes = nodes[
+        nodes["node_id"].astype("int64").isin(participating_node_ids)
+    ].copy()
+
+    return {
+        "redteam_edge_count": int(len(redteam_edges)),
+        "redteam_participating_node_count": int(len(participating_nodes)),
+        "redteam_labeled_node_count": int(len(labeled_nodes)),
+        "redteam_edge_type_counts": value_counts_to_dict(
+            redteam_edges["edge_type"]
+        )
+        if not redteam_edges.empty
+        else {},
+        "redteam_event_family_counts": value_counts_to_dict(
+            redteam_edges["event_family"]
+        )
+        if not redteam_edges.empty
+        else {},
+        "redteam_node_type_counts": value_counts_to_dict(
+            participating_nodes["entity_type"]
+        )
+        if not participating_nodes.empty
+        else {},
+        "redteam_edge_sample": build_redteam_edge_sample(
+            redteam_edges=redteam_edges,
+            nodes=nodes,
+            config=config,
+        ),
+    }
+
+
+def print_redteam_graph_profile(
+    redteam_profile: dict[str, Any],
+) -> None:
+    print()
+    print("Red-team graph profile")
+    print(
+        {
+            "redteam_edge_count": redteam_profile["redteam_edge_count"],
+            "redteam_participating_node_count": redteam_profile[
+                "redteam_participating_node_count"
+            ],
+            "redteam_labeled_node_count": redteam_profile[
+                "redteam_labeled_node_count"
+            ],
+        }
+    )
+
+    print("Red-team edge type counts:")
+    print(redteam_profile["redteam_edge_type_counts"])
+
+    print("Red-team event family counts:")
+    print(redteam_profile["redteam_event_family_counts"])
+
+    print("Red-team node type counts:")
+    print(redteam_profile["redteam_node_type_counts"])
+
+    print("Red-team edge sample:")
+    print(redteam_profile["redteam_edge_sample"])
+
+
 def build_paths(config: dict[str, Any]) -> dict[str, Path]:
     input_directory = Path(config["input"]["directory"])
     output_directory = Path(config["output"]["directory"])
@@ -682,7 +1034,22 @@ def main() -> None:
     )
 
     print_degree_profile(degree_profile)
-    
+
+    structural_profile = build_structural_graph_profile(
+        graph=graph,
+        nodes=nodes,
+        config=config,
+    )
+
+    print_structural_graph_profile(structural_profile)
+
+    redteam_profile = build_redteam_graph_profile(
+        valid_edges=valid_edges,
+        nodes=nodes,
+        config=config,
+    )
+
+    print_redteam_graph_profile(redteam_profile)
 
 
 
