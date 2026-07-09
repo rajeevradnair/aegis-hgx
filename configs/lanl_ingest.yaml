@@ -1,7 +1,7 @@
 input:
   directory: data/external/lanl
   compression: gzip
-  max_rows_per_file: 10_000_000
+  max_rows_per_file: 1_000_000
 
 files:
   auth:

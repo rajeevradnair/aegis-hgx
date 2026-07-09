@@ -68,5 +68,8 @@ jobs:
       - name: Test LANL ingestion pipeline
         run: python -m pytest tests/test_ingest_lanl_sample.py -ra
 
+      - name: Test LANL event table builder
+        run: python -m pytest tests/test_build_lanl_event_tables.py -ra
+
       - name: Run tests
         run: python -m pytest -ra
