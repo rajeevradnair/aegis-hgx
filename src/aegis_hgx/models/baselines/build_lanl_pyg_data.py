@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 import argparse
+import json
 
 import pandas as pd
 import torch
@@ -11,6 +13,37 @@ from torch_geometric.data import Data
 
 
 CONFIG_PATH = "configs/lanl_pyg_data.yaml"
+
+
+def make_json_safe(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {
+            str(key): make_json_safe(item)
+            for key, item in value.items()
+        }
+
+    if isinstance(value, list):
+        return [
+            make_json_safe(item)
+            for item in value
+        ]
+
+    if isinstance(value, tuple):
+        return [
+            make_json_safe(item)
+            for item in value
+        ]
+
+    try:
+        if pd.isna(value):
+            return None
+    except (TypeError, ValueError):
+        pass
+
+    if hasattr(value, "item"):
+        return value.item()
+
+    return value
 
 
 def load_config(config_path: str | Path) -> dict[str, Any]:
@@ -368,6 +401,7 @@ def print_edge_index_summary(
     valid_edges: pd.DataFrame,
     invalid_edges: pd.DataFrame,
 ) -> None:
+    print()
     print("PyG edge_index summary")
     print(
         {
@@ -497,6 +531,7 @@ def print_node_tensor_summary(
     y: torch.Tensor,
     node_feature_metadata: dict[str, Any],
 ) -> None:
+    print()
     print("Node tensor summary")
     print(
         {
@@ -678,6 +713,7 @@ def print_edge_tensor_summary(
     edge_label = edge_metadata_tensors["edge_label"]
     edge_type_id = edge_metadata_tensors["edge_type_id"]
 
+    print()
     print("Edge tensor summary")
     print(
         {
@@ -785,6 +821,7 @@ def validate_pyg_data_object(
 def print_pyg_data_summary(
     data: Data,
 ) -> None:
+    print()
     print("PyG Data object summary")
     print(
         {
@@ -799,6 +836,120 @@ def print_pyg_data_summary(
             "node_type_id_shape": list(data.node_type_id.shape),
             "edge_type_id_shape": list(data.edge_type_id.shape),
             "event_family_id_shape": list(data.event_family_id.shape),
+        }
+    )
+
+
+def build_graph_metadata(
+    config: dict[str, Any],
+    paths: dict[str, Path],
+    prepared_nodes: pd.DataFrame,
+    edges: pd.DataFrame,
+    valid_edges: pd.DataFrame,
+    invalid_edges: pd.DataFrame,
+    data: Data,
+    node_feature_metadata: dict[str, Any],
+    edge_feature_metadata: dict[str, Any],
+    node_metadata: dict[str, Any],
+    edge_metadata: dict[str, Any],
+) -> dict[str, Any]:
+    metadata = {
+        "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+        "phase": "pyg_data_preparation_before_model_training",
+        "purpose": "Build homogeneous LANL PyG Data object from graph tables.",
+        "inputs": {
+            "graph_nodes": str(paths["graph_nodes"]),
+            "graph_edges": str(paths["graph_edges"]),
+        },
+        "outputs": {
+            "pyg_graph": str(paths["pyg_graph"]),
+            "metadata": str(paths["metadata"]),
+        },
+        "counts": {
+            "node_rows": int(len(prepared_nodes)),
+            "edge_rows": int(len(edges)),
+            "valid_edge_rows": int(len(valid_edges)),
+            "invalid_edge_rows": int(len(invalid_edges)),
+            "num_nodes": int(data.num_nodes),
+            "num_edges": int(data.edge_index.shape[1]),
+        },
+        "tensor_shapes": {
+            "x": list(data.x.shape),
+            "edge_index": list(data.edge_index.shape),
+            "edge_attr": list(data.edge_attr.shape),
+            "y": list(data.y.shape),
+            "edge_label": list(data.edge_label.shape),
+            "node_id": list(data.node_id.shape),
+            "node_type_id": list(data.node_type_id.shape),
+            "edge_type_id": list(data.edge_type_id.shape),
+            "event_family_id": list(data.event_family_id.shape),
+        },
+        "labels": {
+            "node_label_values": sorted(data.y.unique().tolist()),
+            "edge_label_values": sorted(data.edge_label.unique().tolist()),
+        },
+        "indexing": {
+            "node_id_equals_pyg_index": node_id_equals_pyg_index(prepared_nodes),
+            "min_pyg_node_index": int(prepared_nodes["pyg_node_index"].min())
+            if not prepared_nodes.empty
+            else None,
+            "max_pyg_node_index": int(prepared_nodes["pyg_node_index"].max())
+            if not prepared_nodes.empty
+            else None,
+        },
+        "features": {
+            **node_feature_metadata,
+            **edge_feature_metadata,
+        },
+        "mappings": {
+            **node_metadata,
+            **edge_metadata,
+        },
+        "validation": config["validation"],
+    }
+
+    return make_json_safe(metadata)
+
+
+def save_pyg_outputs(
+    data: Data,
+    metadata: dict[str, Any],
+    paths: dict[str, Path],
+) -> dict[str, Path]:
+    paths["pyg_graph"].parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    torch.save(
+        data,
+        paths["pyg_graph"],
+    )
+
+    paths["metadata"].write_text(
+        json.dumps(
+            metadata,
+            indent=2,
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
+
+    return {
+        "pyg_graph": paths["pyg_graph"],
+        "metadata": paths["metadata"],
+    }
+
+
+def print_output_paths(
+    output_paths: dict[str, Path],
+) -> None:
+    print()
+    print("PyG conversion outputs")
+    print(
+        {
+            key: str(path)
+            for key, path in output_paths.items()
         }
     )
 
@@ -949,6 +1100,28 @@ def main() -> None:
     validate_pyg_data_object(data)
 
     print_pyg_data_summary(data)
+
+    metadata = build_graph_metadata(
+        config=config,
+        paths=paths,
+        prepared_nodes=prepared_nodes,
+        edges=edges,
+        valid_edges=valid_edges,
+        invalid_edges=invalid_edges,
+        data=data,
+        node_feature_metadata=node_feature_metadata,
+        edge_feature_metadata=edge_feature_metadata,
+        node_metadata=node_metadata,
+        edge_metadata=edge_metadata,
+    )
+
+    output_paths = save_pyg_outputs(
+        data=data,
+        metadata=metadata,
+        paths=paths,
+    )
+
+    print_output_paths(output_paths)
 
 
 if __name__ == "__main__":
