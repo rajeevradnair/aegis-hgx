@@ -1,0 +1,26 @@
+input:
+  directory: data/processed/lanl
+  graph_nodes_filename: graph_nodes.parquet
+  graph_edges_filename: graph_edges.parquet
+
+output:
+  directory: data/processed/lanl
+  graph_filename: lanl_homogeneous_graph.pt
+  metadata_filename: lanl_homogeneous_graph_metadata.json
+
+features:
+  node_numeric:
+    - event_count
+    - first_seen_timestamp
+    - last_seen_timestamp
+    - active_span
+  node_categorical:
+    - entity_type
+  edge_numeric:
+    - timestamp
+  edge_categorical:
+    - edge_type
+
+validation:
+  invalid_edge_policy: warn
+  require_compact_indices: true

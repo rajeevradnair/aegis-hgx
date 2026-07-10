@@ -13,6 +13,8 @@ dependencies = [
     "dvc>=3.0",
     "evidently>=0.7,<0.8",
     "networkx>=3.2",
+    "torch",
+    "torch_geometric>=2.8.0",
 ]
 
 [project.optional-dependencies]
