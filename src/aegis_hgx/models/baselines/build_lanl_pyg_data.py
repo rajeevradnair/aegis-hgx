@@ -378,6 +378,136 @@ def print_edge_index_summary(
     )
 
 
+def add_node_derived_features(
+    prepared_nodes: pd.DataFrame,
+) -> pd.DataFrame:
+    nodes_with_features = prepared_nodes.copy()
+
+    nodes_with_features["active_span"] = (
+        nodes_with_features["last_seen_timestamp"].astype("float64")
+        - nodes_with_features["first_seen_timestamp"].astype("float64")
+    )
+
+    nodes_with_features["active_span"] = nodes_with_features[
+        "active_span"
+    ].clip(lower=0.0)
+
+    return nodes_with_features
+
+
+def min_max_scale_series(
+    series: pd.Series,
+) -> pd.Series:
+    numeric_series = pd.to_numeric(
+        series,
+        errors="coerce",
+    ).fillna(0.0).astype("float64")
+
+    minimum = numeric_series.min()
+    maximum = numeric_series.max()
+
+    if maximum == minimum:
+        return pd.Series(
+            0.0,
+            index=numeric_series.index,
+        )
+
+    return (numeric_series - minimum) / (maximum - minimum)
+
+
+def build_node_feature_tensor(
+    prepared_nodes: pd.DataFrame,
+    config: dict[str, Any],
+) -> tuple[torch.Tensor, dict[str, Any]]:
+    nodes_with_features = add_node_derived_features(prepared_nodes)
+
+    numeric_feature_names = list(config["features"]["node_numeric"])
+    categorical_feature_names = list(config["features"]["node_categorical"])
+
+    numeric_features: list[pd.Series] = []
+
+    for feature_name in numeric_feature_names:
+        if feature_name not in nodes_with_features.columns:
+            raise ValueError(f"Missing node numeric feature: {feature_name}")
+
+        scaled_feature = min_max_scale_series(nodes_with_features[feature_name])
+        numeric_features.append(scaled_feature.rename(feature_name))
+
+    numeric_frame = pd.concat(
+        numeric_features,
+        axis=1,
+    )
+
+    categorical_frames: list[pd.DataFrame] = []
+    categorical_metadata: dict[str, list[str]] = {}
+
+    for feature_name in categorical_feature_names:
+        if feature_name not in nodes_with_features.columns:
+            raise ValueError(f"Missing node categorical feature: {feature_name}")
+
+        one_hot = pd.get_dummies(
+            nodes_with_features[feature_name].astype("string").fillna("unknown"),
+            prefix=feature_name,
+            dtype="float32",
+        )
+
+        categorical_metadata[feature_name] = list(one_hot.columns)
+        categorical_frames.append(one_hot)
+
+    #Create the full dataframe for x
+    feature_frame = pd.concat(
+        [numeric_frame, *categorical_frames],
+        axis=1,
+    ).astype("float32")
+
+    x = torch.tensor(
+        feature_frame.to_numpy(),
+        dtype=torch.float,
+    )
+
+    metadata = {
+        "node_feature_columns": list(feature_frame.columns),
+        "node_numeric_features": numeric_feature_names,
+        "node_categorical_features": categorical_feature_names,
+        "node_categorical_columns": categorical_metadata,
+    }
+
+    return x, metadata
+
+
+def build_node_label_tensor(
+    prepared_nodes: pd.DataFrame,
+) -> torch.Tensor:
+    labels = pd.to_numeric(
+        prepared_nodes["label"],
+        errors="coerce",
+    ).fillna(0).astype("int64")
+
+    y = torch.tensor(
+        labels.to_numpy(),
+        dtype=torch.long,
+    )
+
+    return y
+
+
+def print_node_tensor_summary(
+    x: torch.Tensor,
+    y: torch.Tensor,
+    node_feature_metadata: dict[str, Any],
+) -> None:
+    print("Node tensor summary")
+    print(
+        {
+            "x_shape": list(x.shape),
+            "y_shape": list(y.shape),
+            "node_feature_count": int(x.shape[1]) if x.ndim == 2 else 0,
+            "label_values": sorted(y.unique().tolist()),
+            "node_feature_columns": node_feature_metadata["node_feature_columns"],
+        }
+    )
+
+
 def print_conversion_plan(
     config: dict[str, Any],
     paths: dict[str, Path],
@@ -478,6 +608,19 @@ def main() -> None:
         edge_index=edge_index,
         valid_edges=valid_edges,
         invalid_edges=invalid_edges,
+    )
+
+    x, node_feature_metadata = build_node_feature_tensor(
+        prepared_nodes=prepared_nodes,
+        config=config,
+    )
+
+    y = build_node_label_tensor(prepared_nodes)
+
+    print_node_tensor_summary(
+        x=x,
+        y=y,
+        node_feature_metadata=node_feature_metadata,
     )
 
 
