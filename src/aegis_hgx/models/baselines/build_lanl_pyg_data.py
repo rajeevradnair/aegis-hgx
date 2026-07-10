@@ -7,6 +7,7 @@ import argparse
 import pandas as pd
 import torch
 import yaml
+from torch_geometric.data import Data
 
 
 CONFIG_PATH = "configs/lanl_pyg_data.yaml"
@@ -508,6 +509,300 @@ def print_node_tensor_summary(
     )
 
 
+def sanitize_edge_categorical_feature(
+    valid_edges: pd.DataFrame,
+    feature_name: str,
+) -> pd.Series:
+    values = valid_edges[feature_name].astype("string").fillna("unknown")
+
+    if feature_name != "edge_type":
+        return values
+
+    ground_truth_mask = (
+        valid_edges["event_family"].astype("string").fillna("unknown")
+        == "redteam_ground_truth"
+    )
+
+    sanitized_values = values.copy()
+    sanitized_values.loc[ground_truth_mask] = "ground_truth_edge_type_withheld"
+
+    return sanitized_values
+
+
+def build_edge_feature_tensor(
+    valid_edges: pd.DataFrame,
+    config: dict[str, Any],
+) -> tuple[torch.Tensor, dict[str, Any]]:
+    numeric_feature_names = list(config["features"]["edge_numeric"])
+    categorical_feature_names = list(config["features"]["edge_categorical"])
+
+    numeric_features = []
+
+    for feature_name in numeric_feature_names:
+        if feature_name not in valid_edges.columns:
+            raise ValueError(f"Missing edge numeric feature: {feature_name}")
+
+        scaled_feature = min_max_scale_series(valid_edges[feature_name])
+        numeric_features.append(scaled_feature.rename(feature_name))
+
+    numeric_frame = pd.concat(
+        numeric_features,
+        axis=1,
+    )
+
+    categorical_frames = []
+    categorical_metadata = {}
+
+    for feature_name in categorical_feature_names:
+        if feature_name not in valid_edges.columns:
+            raise ValueError(f"Missing edge categorical feature: {feature_name}")
+
+        sanitized_values = sanitize_edge_categorical_feature(
+            valid_edges=valid_edges,
+            feature_name=feature_name,
+        )
+
+        one_hot = pd.get_dummies(
+            sanitized_values,
+            prefix=feature_name,
+            dtype="float32",
+        )
+
+        categorical_metadata[feature_name] = list(one_hot.columns)
+        categorical_frames.append(one_hot)
+
+    feature_frame = pd.concat(
+        [numeric_frame, *categorical_frames],
+        axis=1,
+    ).astype("float32")
+
+    # Required to avoid leakage into the edge attributes
+    leakage_columns = [
+        "edge_type_ground_truth_edge_type_withheld",
+    ]
+
+    feature_frame = feature_frame.drop(
+        columns=[
+            column
+            for column in leakage_columns
+            if column in feature_frame.columns
+        ]
+    )
+
+
+    edge_attr = torch.tensor(
+        feature_frame.to_numpy(),
+        dtype=torch.float,
+    )
+
+    metadata = {
+        "edge_feature_columns": list(feature_frame.columns),
+        "edge_numeric_features": numeric_feature_names,
+        "edge_categorical_features": categorical_feature_names,
+        "edge_categorical_columns": categorical_metadata,
+    }
+
+    return edge_attr, metadata
+
+
+def build_edge_label_tensor(
+    valid_edges: pd.DataFrame,
+) -> torch.Tensor:
+    labels = pd.to_numeric(
+        valid_edges["label"],
+        errors="coerce",
+    ).fillna(0).astype("int64")
+
+    return torch.tensor(
+        labels.to_numpy(),
+        dtype=torch.long,
+    )
+
+
+def build_categorical_id_tensor(
+    values: pd.Series,
+) -> tuple[torch.Tensor, dict[str, int]]:
+    unique_values = sorted(
+        values.astype("string").fillna("unknown").unique().tolist()
+    )
+
+    value_to_id = {
+        str(value): index
+        for index, value in enumerate(unique_values)
+    }
+
+    ids = values.astype("string").fillna("unknown").map(value_to_id).astype("int64")
+
+    return (
+        torch.tensor(
+            ids.to_numpy(),
+            dtype=torch.long,
+        ),
+        value_to_id,
+    )
+
+
+def build_edge_metadata_tensors(
+    valid_edges: pd.DataFrame,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    edge_label = build_edge_label_tensor(valid_edges)
+
+    edge_type_id, edge_type_mapping = build_categorical_id_tensor(
+        valid_edges["edge_type"]
+    )
+
+    event_family_id, event_family_mapping = build_categorical_id_tensor(
+        valid_edges["event_family"]
+    )
+
+    edge_metadata_tensors = {
+        "edge_label": edge_label,
+        "edge_type_id": edge_type_id,
+        "event_family_id": event_family_id,
+        "edge_id": valid_edges["edge_id"].astype("string").fillna("").tolist(),
+    }
+
+    edge_metadata = {
+        "edge_type_mapping": edge_type_mapping,
+        "event_family_mapping": event_family_mapping,
+    }
+
+    return edge_metadata_tensors, edge_metadata
+
+
+def print_edge_tensor_summary(
+    edge_attr: torch.Tensor,
+    edge_metadata_tensors: dict[str, Any],
+    edge_feature_metadata: dict[str, Any],
+) -> None:
+    edge_label = edge_metadata_tensors["edge_label"]
+    edge_type_id = edge_metadata_tensors["edge_type_id"]
+
+    print("Edge tensor summary")
+    print(
+        {
+            "edge_attr_shape": list(edge_attr.shape),
+            "edge_label_shape": list(edge_label.shape),
+            "edge_type_id_shape": list(edge_type_id.shape),
+            "edge_label_values": sorted(edge_label.unique().tolist()),
+            "edge_feature_columns": edge_feature_metadata["edge_feature_columns"],
+        }
+    )
+
+def build_node_metadata_tensors(
+    prepared_nodes: pd.DataFrame,
+) -> tuple[dict[str, torch.Tensor], dict[str, Any]]:
+    node_id = torch.tensor(
+        prepared_nodes["node_id"].astype("int64").to_numpy(),
+        dtype=torch.long,
+    )
+
+    node_type_id, node_type_mapping = build_categorical_id_tensor(
+        prepared_nodes["entity_type"]
+    )
+
+    node_metadata_tensors = {
+        "node_id": node_id,
+        "node_type_id": node_type_id,
+    }
+
+    node_metadata = {
+        "node_type_mapping": node_type_mapping,
+    }
+
+    return node_metadata_tensors, node_metadata
+
+
+def build_pyg_data_object(
+    x: torch.Tensor,
+    edge_index: torch.Tensor,
+    edge_attr: torch.Tensor,
+    y: torch.Tensor,
+    node_metadata_tensors: dict[str, torch.Tensor],
+    edge_metadata_tensors: dict[str, Any],
+) -> Data:
+    
+    print("******************************")
+    print(x.shape)
+    print(edge_index.shape)
+    print(edge_attr.shape)
+    print(y.shape)
+    print("******************************")
+
+    data = Data(
+        x=x,
+        edge_index=edge_index,
+        edge_attr=edge_attr,
+        y=y,
+    )
+
+    data.num_nodes = x.shape[0]
+
+    data.node_id = node_metadata_tensors["node_id"]
+    data.node_type_id = node_metadata_tensors["node_type_id"]
+
+    data.edge_label = edge_metadata_tensors["edge_label"]
+    data.edge_type_id = edge_metadata_tensors["edge_type_id"]
+    data.event_family_id = edge_metadata_tensors["event_family_id"]
+    data.edge_id = edge_metadata_tensors["edge_id"]
+
+    return data
+
+
+def validate_pyg_data_object(
+    data: Data,
+) -> None:
+    data.validate(raise_on_error=True)
+
+    if data.x.ndim != 2:
+        raise ValueError("data.x must have shape [num_nodes, num_node_features].")
+
+    if data.y.ndim != 1:
+        raise ValueError("data.y must have shape [num_nodes].")
+
+    if data.x.shape[0] != data.num_nodes:
+        raise ValueError("data.x row count must match data.num_nodes.")
+
+    if data.y.shape[0] != data.num_nodes:
+        raise ValueError("data.y length must match data.num_nodes.")
+
+    if data.edge_index.shape[1] != data.edge_attr.shape[0]:
+        raise ValueError("edge_attr rows must match edge_index columns.")
+
+    if data.edge_label.shape[0] != data.edge_index.shape[1]:
+        raise ValueError("edge_label length must match number of edges.")
+
+    if data.edge_type_id.shape[0] != data.edge_index.shape[1]:
+        raise ValueError("edge_type_id length must match number of edges.")
+
+    if data.event_family_id.shape[0] != data.edge_index.shape[1]:
+        raise ValueError("event_family_id length must match number of edges.")
+
+    if len(data.edge_id) != data.edge_index.shape[1]:
+        raise ValueError("edge_id count must match number of edges.")
+
+
+def print_pyg_data_summary(
+    data: Data,
+) -> None:
+    print("PyG Data object summary")
+    print(
+        {
+            "num_nodes": int(data.num_nodes),
+            "num_edges": int(data.edge_index.shape[1]),
+            "x_shape": list(data.x.shape),
+            "edge_index_shape": list(data.edge_index.shape),
+            "edge_attr_shape": list(data.edge_attr.shape),
+            "y_shape": list(data.y.shape),
+            "edge_label_shape": list(data.edge_label.shape),
+            "node_id_shape": list(data.node_id.shape),
+            "node_type_id_shape": list(data.node_type_id.shape),
+            "edge_type_id_shape": list(data.edge_type_id.shape),
+            "event_family_id_shape": list(data.event_family_id.shape),
+        }
+    )
+
+
 def print_conversion_plan(
     config: dict[str, Any],
     paths: dict[str, Path],
@@ -622,6 +917,38 @@ def main() -> None:
         y=y,
         node_feature_metadata=node_feature_metadata,
     )
+
+    edge_attr, edge_feature_metadata = build_edge_feature_tensor(
+        valid_edges=valid_edges,
+        config=config,
+    )
+
+    edge_metadata_tensors, edge_metadata = build_edge_metadata_tensors(
+        valid_edges=valid_edges,
+    )
+
+    print_edge_tensor_summary(
+        edge_attr=edge_attr,
+        edge_metadata_tensors=edge_metadata_tensors,
+        edge_feature_metadata=edge_feature_metadata,
+    )
+
+    node_metadata_tensors, node_metadata = build_node_metadata_tensors(
+        prepared_nodes=prepared_nodes,
+    )
+
+    data = build_pyg_data_object(
+        x=x,
+        edge_index=edge_index,
+        edge_attr=edge_attr,
+        y=y,
+        node_metadata_tensors=node_metadata_tensors,
+        edge_metadata_tensors=edge_metadata_tensors,
+    )
+
+    validate_pyg_data_object(data)
+
+    print_pyg_data_summary(data)
 
 
 if __name__ == "__main__":
