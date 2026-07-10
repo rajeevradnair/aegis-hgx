@@ -4,7 +4,7 @@ input:
   graph_edges_filename: graph_edges.parquet
 
 output:
-  directory: data/processed/lanl
+  directory: artifacts/models/lanl
   graph_filename: lanl_homogeneous_graph.pt
   metadata_filename: lanl_homogeneous_graph_metadata.json
 
