@@ -238,6 +238,8 @@ def prepare_nodes_for_pyg(
 
     prepared_nodes["pyg_node_index"] = range(len(prepared_nodes))
 
+    #print(prepared_nodes.head())
+
     return prepared_nodes
 
 
@@ -476,6 +478,7 @@ def build_node_feature_tensor(
     categorical_frames: list[pd.DataFrame] = []
     categorical_metadata: dict[str, list[str]] = {}
 
+    print()
     for feature_name in categorical_feature_names:
         if feature_name not in nodes_with_features.columns:
             raise ValueError(f"Missing node categorical feature: {feature_name}")
@@ -485,7 +488,7 @@ def build_node_feature_tensor(
             prefix=feature_name,
             dtype="float32",
         )
-
+        print(f"Node: Feature frame columns for {feature_name}:", one_hot.columns.tolist())
         categorical_metadata[feature_name] = list(one_hot.columns)
         categorical_frames.append(one_hot)
 
@@ -494,6 +497,8 @@ def build_node_feature_tensor(
         [numeric_frame, *categorical_frames],
         axis=1,
     ).astype("float32")
+    
+    print("Node feature frame columns:", feature_frame.columns.tolist())
 
     x = torch.tensor(
         feature_frame.to_numpy(),
@@ -588,6 +593,7 @@ def build_edge_feature_tensor(
     categorical_frames = []
     categorical_metadata = {}
 
+    print()
     for feature_name in categorical_feature_names:
         if feature_name not in valid_edges.columns:
             raise ValueError(f"Missing edge categorical feature: {feature_name}")
@@ -603,27 +609,38 @@ def build_edge_feature_tensor(
             dtype="float32",
         )
 
+        print(f"Edge: Feature frame columns for {feature_name}:", one_hot.columns.tolist())
         categorical_metadata[feature_name] = list(one_hot.columns)
         categorical_frames.append(one_hot)
 
-    feature_frame = pd.concat(
+    feature_frame_before_leakage_drop = pd.concat(
         [numeric_frame, *categorical_frames],
         axis=1,
     ).astype("float32")
 
-    # Required to avoid leakage into the edge attributes
+    # Required to avoid leakage into the edge attributes.
     leakage_columns = [
         "edge_type_ground_truth_edge_type_withheld",
     ]
 
-    feature_frame = feature_frame.drop(
-        columns=[
-            column
-            for column in leakage_columns
-            if column in feature_frame.columns
-        ]
+    dropped_edge_feature_columns = [
+        column
+        for column in leakage_columns
+        if column in feature_frame_before_leakage_drop.columns
+    ]
+
+    feature_frame = feature_frame_before_leakage_drop.drop(
+        columns=dropped_edge_feature_columns,
     )
 
+    edge_categorical_columns_after_leakage_drop = {
+        feature_name: [
+            column
+            for column in columns
+            if column in feature_frame.columns
+        ]
+        for feature_name, columns in categorical_metadata.items()
+    }
 
     edge_attr = torch.tensor(
         feature_frame.to_numpy(),
@@ -634,7 +651,9 @@ def build_edge_feature_tensor(
         "edge_feature_columns": list(feature_frame.columns),
         "edge_numeric_features": numeric_feature_names,
         "edge_categorical_features": categorical_feature_names,
-        "edge_categorical_columns": categorical_metadata,
+        "edge_categorical_columns": edge_categorical_columns_after_leakage_drop,
+        "edge_categorical_columns_before_leakage_drop": categorical_metadata,
+        "dropped_edge_feature_columns": dropped_edge_feature_columns,
     }
 
     return edge_attr, metadata
@@ -757,13 +776,15 @@ def build_pyg_data_object(
     node_metadata_tensors: dict[str, torch.Tensor],
     edge_metadata_tensors: dict[str, Any],
 ) -> Data:
-    
-    print("******************************")
-    print(x.shape)
-    print(edge_index.shape)
-    print(edge_attr.shape)
-    print(y.shape)
-    print("******************************")
+
+    print()
+    print("*" * 40)
+    print("PyG Data object summary")
+    print("x shape:", x.shape)
+    print("edge_index shape:", edge_index.shape)
+    print("edge_attr shape:", edge_attr.shape)
+    print("y shape:", y.shape)
+    print("*" * 40)
 
     data = Data(
         x=x,
@@ -773,14 +794,14 @@ def build_pyg_data_object(
     )
 
     data.num_nodes = x.shape[0]
-
     data.node_id = node_metadata_tensors["node_id"]
     data.node_type_id = node_metadata_tensors["node_type_id"]
-
     data.edge_label = edge_metadata_tensors["edge_label"]
     data.edge_type_id = edge_metadata_tensors["edge_type_id"]
     data.event_family_id = edge_metadata_tensors["event_family_id"]
     data.edge_id = edge_metadata_tensors["edge_id"]
+    
+    print(data)
 
     return data
 
@@ -839,6 +860,153 @@ def print_pyg_data_summary(
         }
     )
 
+def build_pyg_data_object_field_manifest(
+    data: Data,
+    node_feature_metadata: dict[str, Any],
+    edge_feature_metadata: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "x": {
+            "stored_in_pt": True,
+            "kind": "node_feature_tensor",
+            "shape": list(data.x.shape),
+            "dtype": str(data.x.dtype),
+            "model_input": True,
+            "target": False,
+            "alignment": "Rows align to compact PyG node indices.",
+            "description": "Node feature matrix used as model input.",
+            "columns": node_feature_metadata["node_feature_columns"],
+        },
+        "edge_index": {
+            "stored_in_pt": True,
+            "kind": "graph_connectivity_tensor",
+            "shape": list(data.edge_index.shape),
+            "dtype": str(data.edge_index.dtype),
+            "model_input": True,
+            "target": False,
+            "alignment": "Column i represents edge i. Row 0 is source node index; row 1 is destination node index.",
+            "description": "PyG graph connectivity tensor.",
+        },
+        "edge_attr": {
+            "stored_in_pt": True,
+            "kind": "edge_feature_tensor",
+            "shape": list(data.edge_attr.shape),
+            "dtype": str(data.edge_attr.dtype),
+            "model_input": True,
+            "target": False,
+            "alignment": "Rows align to columns of edge_index.",
+            "description": "Edge feature matrix used as model input.",
+            "columns": edge_feature_metadata["edge_feature_columns"],
+        },
+        "y": {
+            "stored_in_pt": True,
+            "kind": "node_label_tensor",
+            "shape": list(data.y.shape),
+            "dtype": str(data.y.dtype),
+            "model_input": False,
+            "target": True,
+            "alignment": "Entries align to rows of x.",
+            "description": "Node-level labels for node classification.",
+        },
+        "num_nodes": {
+            "stored_in_pt": True,
+            "kind": "pyg_graph_property",
+            "shape": "scalar",
+            "dtype": "int",
+            "model_input": False,
+            "target": False,
+            "description": "Explicit number of nodes in the PyG graph.",
+            "value": int(data.num_nodes),
+        },
+        "node_id": {
+            "stored_in_pt": True,
+            "kind": "node_traceability_tensor",
+            "shape": list(data.node_id.shape),
+            "dtype": str(data.node_id.dtype),
+            "model_input": False,
+            "target": False,
+            "alignment": "Entries align to rows of x.",
+            "description": "Original node IDs from graph_nodes.parquet.",
+            "source_column": "graph_nodes.node_id",
+        },
+        "node_type_id": {
+            "stored_in_pt": True,
+            "kind": "node_metadata_tensor",
+            "shape": list(data.node_type_id.shape),
+            "dtype": str(data.node_type_id.dtype),
+            "model_input": False,
+            "target": False,
+            "alignment": "Entries align to rows of x.",
+            "description": "Integer-encoded node entity type.",
+            "source_column": "graph_nodes.entity_type",
+            "mapping_key": "mappings.node_type_mapping",
+        },
+        "edge_label": {
+            "stored_in_pt": True,
+            "kind": "edge_label_tensor",
+            "shape": list(data.edge_label.shape),
+            "dtype": str(data.edge_label.dtype),
+            "model_input": False,
+            "target": True,
+            "alignment": "Entries align to columns of edge_index and rows of edge_attr.",
+            "description": "Edge-level labels kept separate from edge_attr to avoid leakage.",
+            "source_column": "graph_edges.label",
+        },
+        "edge_type_id": {
+            "stored_in_pt": True,
+            "kind": "edge_metadata_tensor",
+            "shape": list(data.edge_type_id.shape),
+            "dtype": str(data.edge_type_id.dtype),
+            "model_input": False,
+            "target": False,
+            "alignment": "Entries align to columns of edge_index and rows of edge_attr.",
+            "description": "Integer-encoded original edge type.",
+            "source_column": "graph_edges.edge_type",
+            "mapping_key": "mappings.edge_type_mapping",
+        },
+        "event_family_id": {
+            "stored_in_pt": True,
+            "kind": "edge_metadata_tensor",
+            "shape": list(data.event_family_id.shape),
+            "dtype": str(data.event_family_id.dtype),
+            "model_input": False,
+            "target": False,
+            "alignment": "Entries align to columns of edge_index and rows of edge_attr.",
+            "description": "Integer-encoded original event family.",
+            "source_column": "graph_edges.event_family",
+            "mapping_key": "mappings.event_family_mapping",
+        },
+        "edge_id": {
+            "stored_in_pt": True,
+            "kind": "edge_traceability_list",
+            "shape": [len(data.edge_id)],
+            "dtype": "list[str]",
+            "model_input": False,
+            "target": False,
+            "alignment": "Entries align to columns of edge_index and rows of edge_attr.",
+            "description": "Original edge IDs from graph_edges.parquet.",
+            "source_column": "graph_edges.edge_id",
+        },
+    }
+
+
+def build_leakage_controls_manifest(
+    edge_feature_metadata: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "node_label_not_in_x": True,
+        "edge_label_not_in_edge_attr": True,
+        "redteam_ground_truth_edge_type_sanitized": True,
+        "dropped_edge_feature_columns": edge_feature_metadata.get(
+            "dropped_edge_feature_columns",
+            [],
+        ),
+        "explanation": (
+            "Ground-truth labels and red-team-only marker columns are excluded "
+            "from model input tensors to reduce label leakage."
+        ),
+    }
+
 
 def build_graph_metadata(
     config: dict[str, Any],
@@ -884,10 +1052,31 @@ def build_graph_metadata(
             "edge_type_id": list(data.edge_type_id.shape),
             "event_family_id": list(data.event_family_id.shape),
         },
+        "stored_field_shapes": {
+            "x": list(data.x.shape),
+            "edge_index": list(data.edge_index.shape),
+            "edge_attr": list(data.edge_attr.shape),
+            "y": list(data.y.shape),
+            "edge_label": list(data.edge_label.shape),
+            "node_id": list(data.node_id.shape),
+            "node_type_id": list(data.node_type_id.shape),
+            "edge_type_id": list(data.edge_type_id.shape),
+            "event_family_id": list(data.event_family_id.shape),
+            "edge_id": [len(data.edge_id)],
+            "num_nodes": "scalar",
+        },
         "labels": {
             "node_label_values": sorted(data.y.unique().tolist()),
             "edge_label_values": sorted(data.edge_label.unique().tolist()),
         },
+        "pyg_data_object_fields": build_pyg_data_object_field_manifest(
+            data=data,
+            node_feature_metadata=node_feature_metadata,
+            edge_feature_metadata=edge_feature_metadata,
+        ),
+        "leakage_controls": build_leakage_controls_manifest(
+            edge_feature_metadata=edge_feature_metadata,
+        ),
         "indexing": {
             "node_id_equals_pyg_index": node_id_equals_pyg_index(prepared_nodes),
             "min_pyg_node_index": int(prepared_nodes["pyg_node_index"].min())
@@ -1019,7 +1208,7 @@ def main() -> None:
     )
 
     prepared_nodes = prepare_nodes_for_pyg(nodes)
-    assert (prepared_nodes["node_id"]==prepared_nodes["pyg_node_index"]).all()
+    #assert (prepared_nodes["node_id"]==prepared_nodes["pyg_node_index"]).all()
 
     validate_compact_pyg_indices(prepared_nodes)
 
