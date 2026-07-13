@@ -1,0 +1,24 @@
+input:
+  graph_path: artifacts/models/lanl/lanl_homogeneous_graph.pt
+
+output:
+  model_path: artifacts/models/lanl/lanl_gcn_model.pt
+  metrics_path: reports/lanl_gcn_metrics.json
+
+split:
+  train_ratio: 0.70
+  val_ratio: 0.15
+  test_ratio: 0.15
+  seed: 42
+
+model:
+  hidden_channels: 64
+  dropout: 0.30
+
+training:
+  epochs: 50
+  learning_rate: 0.01
+  weight_decay: 0.0005
+
+evaluation:
+  positive_label: 1
