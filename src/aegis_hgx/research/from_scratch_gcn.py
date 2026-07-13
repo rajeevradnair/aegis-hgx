@@ -163,13 +163,59 @@ class ManualGCNLayer(nn.Module):
         return output
 
 
+def run_one_manual_gcn_layer_demo(
+    x: torch.Tensor,
+    normalized_adjacency: torch.Tensor,
+) -> torch.Tensor:
+    # Read the number of input features from x.
+    #
+    # If x shape is [4, 3],
+    # then input_features = 3.
+    input_features = x.shape[1]
+
+    # Choose a small hidden dimension for this demo.
+    #
+    # This means each node will be converted from 3 features
+    # into 2 learned hidden features (perhaps logits)
+    output_features = 2
+
+    layer = ManualGCNLayer(
+        input_features=input_features,
+        output_features=output_features,
+    )
+
+    # Run one FORWARD PASS of manual GCN layer.
+    hidden = layer(
+        x=x,
+        normalized_adjacency=normalized_adjacency,
+    )
+
+    print()
+    print("One manual GCN layer summary")
+    print(
+        {
+            "input_x_shape": list(x.shape),
+            "normalized_adjacency_shape": list(normalized_adjacency.shape),
+            "weight_shape": list(layer.weight.shape),
+            "hidden_output_shape": list(hidden.shape),
+        }
+    )
+
+    print()
+    print("Hidden node representations - logits")
+    print(hidden)
+
+    return hidden
+
+
 def main() -> None:
 
     x, adjacency, y = build_toy_graph()
 
     normalized_adjacency = normalize_adjacency(adjacency)
 
-    print("Toy graph tensors")
+    print()
+    print("Sample graph tensors")
     print(
         {
             "x_shape": list(x.shape),
@@ -182,6 +228,11 @@ def main() -> None:
     print()
     print("Normalized adjacency")
     print(normalized_adjacency)
+
+    run_one_manual_gcn_layer_demo(
+        x=x,
+        normalized_adjacency=normalized_adjacency,
+    )
 
 
 if __name__ == "__main__":
