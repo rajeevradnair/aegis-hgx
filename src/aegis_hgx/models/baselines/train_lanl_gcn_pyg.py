@@ -7,9 +7,9 @@ from datetime import datetime, timezone
 import json
 import torch
 import yaml
-from torch_geometric.data import Data
 import torch.nn as nn
 import torch.nn.functional as F
+from torch_geometric.data import Data
 from torch_geometric.nn import GCNConv
 from sklearn.metrics import (
     accuracy_score,
