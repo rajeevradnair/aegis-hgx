@@ -22,3 +22,8 @@ training:
 
 evaluation:
   positive_label: 1
+
+experiment_tracking:
+  experiment_name: aegis-hgx-lanl-gcn-baseline
+  uri: sqlite:///mlflow/mlflow.db
+  artifact_root: mlflow/mlruns

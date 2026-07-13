@@ -19,6 +19,8 @@ from sklearn.metrics import (
     recall_score,
     roc_auc_score,
 )
+import mlflow
+
 
 
 CONFIG_PATH = "configs/lanl_gcn_pyg.yaml"
@@ -79,6 +81,7 @@ def validate_config(config: dict[str, Any]) -> None:
         "model",
         "training",
         "evaluation",
+        "experiment_tracking",
     ]
 
     for section in required_sections:
@@ -151,6 +154,17 @@ def validate_config(config: dict[str, Any]) -> None:
     for key in required_training_keys:
         if key not in config["training"]:
             raise ValueError(f"Missing training.{key} in config.")
+
+    # MLflow settings control where experiment evidence is logged.
+    required_tracking_keys = [
+        "uri",
+        "experiment_name",
+        "artifact_root",
+    ]
+
+    for key in required_tracking_keys:
+        if key not in config["experiment_tracking"]:
+            raise ValueError(f"Missing experiment_tracking.{key} in config.")
 
 
 def build_class_weights(data: Data) -> torch.Tensor:
@@ -1039,6 +1053,147 @@ def print_forward_pass_summary(
     )
 
 
+def configure_experiment(config: dict[str, Any]) -> str:
+    # Read MLflow tracking settings from config.
+    tracking_config = config["experiment_tracking"]
+
+    # Local artifact root for MLflow run artifacts.
+    artifact_root = Path(tracking_config["artifact_root"]).resolve()
+    artifact_root.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    # Example: file:./mlruns
+    mlflow.set_tracking_uri(tracking_config["uri"])
+
+    # Reuse the experiment if it already exists.
+    experiment = mlflow.get_experiment_by_name(
+        tracking_config["experiment_name"]
+    )
+
+    if experiment is None:
+        experiment_id = mlflow.create_experiment(
+            name=tracking_config["experiment_name"],
+            artifact_location=artifact_root.as_uri(),
+        )
+    else:
+        experiment_id = experiment.experiment_id
+
+    mlflow.set_experiment(
+        experiment_id=experiment_id,
+    )
+
+    return str(experiment_id)
+
+
+def build_run_parameters(
+    data: Data,
+    config: dict[str, Any],
+) -> dict[str, object]:
+    # These are the important experiment settings we want MLflow to remember.
+    return {
+        "model_type": "pyg_gcn_node_classifier",
+        "dataset_type": "lanl_homogeneous_graph",
+        "graph_path": config["input"]["graph_path"],
+        "num_nodes": int(data.num_nodes),
+        "num_edges": int(data.edge_index.shape[1]),
+        "node_feature_count": int(data.x.shape[1]),
+        "train_ratio": float(config["split"]["train_ratio"]),
+        "val_ratio": float(config["split"]["val_ratio"]),
+        "test_ratio": float(config["split"]["test_ratio"]),
+        "split_seed": int(config["split"]["seed"]),
+        "hidden_channels": int(config["model"]["hidden_channels"]),
+        "dropout": float(config["model"]["dropout"]),
+        "epochs": int(config["training"]["epochs"]),
+        "learning_rate": float(config["training"]["learning_rate"]),
+        "weight_decay": float(config["training"]["weight_decay"]),
+    }
+
+
+def build_mlflow_metrics(
+    training_history: list[dict[str, float]],
+    test_metrics: dict[str, float],
+) -> dict[str, float]:
+    
+    # Find the epoch with the lowest validation loss.
+    best_validation_epoch = min(
+        training_history,
+        key=lambda record: record["val_loss"],
+    )
+
+    # MLflow metrics should be flat scalar values.
+    return {
+        "best_val_loss": float(best_validation_epoch["val_loss"]),
+        "best_val_accuracy": float(best_validation_epoch["val_accuracy"]),
+        "final_train_loss": float(training_history[-1]["train_loss"]),
+        "final_train_accuracy": float(training_history[-1]["train_accuracy"]),
+        "test_accuracy": float(test_metrics["test_accuracy"]),
+        "test_precision": float(test_metrics["test_precision"]),
+        "test_recall": float(test_metrics["test_recall"]),
+        "test_f1": float(test_metrics["test_f1"]),
+        "test_roc_auc": float(test_metrics["test_roc_auc"]),
+        "test_pr_auc": float(test_metrics["test_pr_auc"]),
+    }
+
+
+
+def log_mlflow_run(
+    config_path: Path,
+    config: dict[str, Any],
+    data: Data,
+    training_history: list[dict[str, float]],
+    test_metrics: dict[str, float],
+    paths: dict[str, Path],
+) -> str:
+    # Build flat dictionaries for MLflow.
+    parameters = build_run_parameters(
+        data=data,
+        config=config,
+    )
+
+    scalar_metrics = build_mlflow_metrics(
+        training_history=training_history,
+        test_metrics=test_metrics,
+    )
+
+    # Start one MLflow run for this GCN experiment.
+    with mlflow.start_run(run_name="lanl-gcn-pyg-baseline") as run:
+        # Tags make the run easier to search/filter later.
+        mlflow.set_tags(
+            {
+                "project": "aegis-hgx",
+                "model_family": "gcn",
+                "dataset_type": "lanl",
+                "pipeline_stage": "graph_training",
+            }
+        )
+
+        # Log config/model/data parameters.
+        mlflow.log_params(parameters)
+
+        # Log scalar metrics.
+        mlflow.log_metrics(scalar_metrics)
+
+        # Log useful evidence artifacts.
+        mlflow.log_artifact(
+            str(config_path),
+            artifact_path="run_evidence/config",
+        )
+
+        mlflow.log_artifact(
+            str(paths["metrics"]),
+            artifact_path="run_evidence/metrics",
+        )
+
+        mlflow.log_artifact(
+            str(paths["model"]),
+            artifact_path="run_evidence/model",
+        )
+
+        return str(run.info.run_id)
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -1049,91 +1204,146 @@ def parse_args() -> argparse.Namespace:
     )
     return parser.parse_args()
 
-
 def main() -> None:
     args = parse_args()
 
     config = load_config(args.config)
     validate_config(config)
 
+    experiment_id = configure_experiment(config)
+
     paths = build_paths(config)
     validate_input_paths(paths)
 
-    print()
-    print("Config path:", args.config)
-    print("Graph path:", paths["graph"])
+    with mlflow.start_run(run_name="lanl-gcn-pyg-baseline") as run:
+        print("Config path:", args.config)
+        print("Graph path:", paths["graph"])
 
-    data = load_pyg_graph(paths["graph"])
+        data = load_pyg_graph(paths["graph"])
 
-    validate_graph_for_gcn(data)
+        validate_graph_for_gcn(data)
 
-    print_graph_summary(data)
+        print_graph_summary(data)
 
-    data = create_node_masks(
-        data=data,
-        config=config,
-    )
+        data = create_node_masks(
+            data=data,
+            config=config,
+        )
 
-    print_node_mask_summary(data)
+        # validate_node_masks(data)
 
-    model = build_model(
-        data=data,
-        config=config,
-    )
+        print_node_mask_summary(data)
 
-    print_model_summary(
-        model=model,
-        data=data,
-    )
+        model = build_model(
+            data=data,
+            config=config,
+        )
 
-    logits = run_forward_pass_smoke_check(
-        model=model,
-        data=data,
-    )
+        print_model_summary(
+            model=model,
+            data=data,
+        )
 
-    print_forward_pass_summary(
-        logits=logits,
-        data=data,
-    )
+        logits = run_forward_pass_smoke_check(
+            model=model,
+            data=data,
+        )
 
-    class_weights = build_class_weights(data)
+        print_forward_pass_summary(
+            logits=logits,
+            data=data,
+        )
 
-    optimizer = build_optimizer(
-        model=model,
-        config=config,
-    )
+        class_weights = build_class_weights(data)
 
-    training_history, best_model_state = train_model(
-        model=model,
-        data=data,
-        optimizer=optimizer,
-        class_weights=class_weights,
-        config=config,
-    )
+        optimizer = build_optimizer(
+            model=model,
+            config=config,
+        )
 
-    print_training_summary(training_history)
+        training_history, best_model_state = train_model(
+            model=model,
+            data=data,
+            optimizer=optimizer,
+            class_weights=class_weights,
+            config=config,
+        )
 
-    test_metrics = evaluate_test_set(
-        model=model,
-        data=data,
-        best_model_state=best_model_state,
-        positive_label=int(config["evaluation"]["positive_label"]),
-    )
+        print_training_summary(training_history)
 
-    print_test_metrics(test_metrics)
+        test_metrics = evaluate_test_set(
+            model=model,
+            data=data,
+            best_model_state=best_model_state,
+            positive_label=int(config["evaluation"]["positive_label"]),
+        )
 
+        print_test_metrics(test_metrics)
 
-    save_training_outputs(
-        model=model,
-        data=data,
-        best_model_state=best_model_state,
-        training_history=training_history,
-        test_metrics=test_metrics,
-        config=config,
-        paths=paths,
-    )
+        save_training_outputs(
+            model=model,
+            data=data,
+            best_model_state=best_model_state,
+            training_history=training_history,
+            test_metrics=test_metrics,
+            config=config,
+            paths=paths,
+        )
 
-    print_saved_output_paths(paths)
+        print_saved_output_paths(paths)
+
+        parameters = build_run_parameters(
+            data=data,
+            config=config,
+        )
+
+        scalar_metrics = build_mlflow_metrics(
+            training_history=training_history,
+            test_metrics=test_metrics,
+        )
+
+        mlflow.set_tags(
+            {
+                "project": "aegis-hgx",
+                "model_family": "gcn",
+                "dataset_type": "lanl",
+                "pipeline_stage": "graph_training",
+            }
+        )
+
+        mlflow.log_params(parameters)
+
+        mlflow.log_metrics(scalar_metrics)
+
+        # Log the training config.
+        mlflow.log_artifact(
+            str(args.config),
+            artifact_path="run_evidence/config",
+        )
+
+        # Log the metrics JSON.
+        mlflow.log_artifact(
+            str(paths["metrics"]),
+            artifact_path="run_evidence/metrics",
+        )
+
+        # Log the actual saved model checkpoint.
+        # This is the key model artifact.
+        mlflow.log_artifact(
+            str(paths["model"]),
+            artifact_path="run_evidence/model",
+        )
+
+        print()
+        print("MLflow tracking")
+        print(
+            {
+                "experiment_id": experiment_id,
+                "run_id": run.info.run_id,
+                "tracking_uri": mlflow.get_tracking_uri(),
+                "artifact_uri": run.info.artifact_uri,
+            }
+        )
 
 
 if __name__ == "__main__":

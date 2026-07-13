@@ -1068,7 +1068,7 @@ def main() -> None:
         mlflow.log_artifact(
             str(model_path),
             artifact_path="run_evidence/model",
-        )
+        )  
         mlflow.log_artifact(
             str(scaler_path),
             artifact_path="run_evidence/scaler",
