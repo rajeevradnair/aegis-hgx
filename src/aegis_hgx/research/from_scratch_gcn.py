@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import torch
 import torch.nn as nn
-
+import torch.nn.functional as F
 
 def build_toy_graph() -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     # Node feature matrix.
@@ -102,24 +102,24 @@ def normalize_adjacency(adjacency: torch.Tensor) -> torch.Tensor:
 class ManualGCNLayer(nn.Module):
     def __init__(
         self,
-        input_features: int,
-        output_features: int,
+        input_features_count: int,
+        output_features_count: int,
     ) -> None:
         super().__init__()
 
         # This is the learnable weight matrix for the layer.
         #
         # Shape:
-        #   [input_features, output_features]
+        #   [input_features_count, output_features_count]
         #
         # Example:
-        #   if input_features = 3
-        #   and output_features = 2
+        #   if input_features_count = 3
+        #   and output_features_count = 2
         #   then weight shape = [3, 2]
         self.weight = nn.Parameter(
             torch.randn(
-                input_features,
-                output_features,
+                input_features_count,
+                output_features_count,
             )
         )
 
@@ -128,10 +128,18 @@ class ManualGCNLayer(nn.Module):
         x: torch.Tensor,
         normalized_adjacency: torch.Tensor,
     ) -> torch.Tensor:
+        
+        # input -> GCN layer -> logits
+
+        # Remember the forward pass formulka: 
+        # Normalized adjacency matrix @ node feature matrix @ weight matrix
+        # example shape: (4 4).       @ (4, 3).             @ (3, 2)
+        #              resultant output (4, 2)
+
         # x is the node feature matrix.
         #
         # Shape:
-        #   [num_nodes, input_features]
+        #   [num_nodes, input_features_count]
 
         # normalized_adjacency is the graph mixing matrix.
         #
@@ -171,17 +179,17 @@ def run_one_manual_gcn_layer_demo(
     #
     # If x shape is [4, 3],
     # then input_features = 3.
-    input_features = x.shape[1]
+    input_features_count = x.shape[1]
 
     # Choose a small hidden dimension for this demo.
     #
     # This means each node will be converted from 3 features
     # into 2 learned hidden features (perhaps logits)
-    output_features = 2
+    output_features_count = 2
 
     layer = ManualGCNLayer(
-        input_features=input_features,
-        output_features=output_features,
+        input_features_count=input_features_count,
+        output_features_count=output_features_count,
     )
 
     # Run one FORWARD PASS of manual GCN layer.
@@ -208,6 +216,132 @@ def run_one_manual_gcn_layer_demo(
     return hidden
 
 
+class TinyManualGCN(nn.Module):
+    def __init__(
+        self,
+        input_features: int,
+        hidden_features: int,
+        output_classes: int,
+    ) -> None:
+        super().__init__()
+
+        # First manual GCN layer.
+        #
+        # Purpose:
+        #   Convert raw node features into hidden node representations.
+        #
+        # Shape:
+        #   [num_nodes, input_features]
+        #   -> [num_nodes, hidden_features]
+        self.layer1 = ManualGCNLayer(
+            input_features_count=input_features,
+            output_features_count=hidden_features,
+        )
+
+        # Second manual GCN layer.
+        #
+        # Purpose:
+        #   Convert hidden node representations into class scores.
+        #
+        # Shape:
+        #   [num_nodes, hidden_features]
+        #   -> [num_nodes, output_classes]
+        self.layer2 = ManualGCNLayer(
+            input_features_count=hidden_features,
+            output_features_count=output_classes,
+        )
+
+    def forward(
+        self,
+        x: torch.Tensor,
+        normalized_adjacency: torch.Tensor,
+    ) -> torch.Tensor:
+        
+        # GCN layer -> RELU -> GCN layer -> logits
+
+        # First message-passing layer.
+        #
+        # Each node receives information from itself and its neighbors,
+        # then the layer applies a learnable weight matrix.
+        hidden = self.layer1(
+            x=x,
+            normalized_adjacency=normalized_adjacency,
+        )
+
+        # ReLU activation.
+        #
+        # This adds nonlinearity.
+        # Without ReLU, stacking two linear GCN layers would still behave
+        # like one larger linear transformation.
+        hidden = F.relu(hidden)
+
+        # Second message-passing layer.
+        #
+        # This produces raw class scores for each node.
+        # These raw scores are called logits.
+        logits = self.layer2(
+            x=hidden,
+            normalized_adjacency=normalized_adjacency,
+        )
+
+        # Shape:
+        #   [num_nodes, output_classes]
+        return logits
+
+
+def run_tiny_manual_gcn_demo(
+    x: torch.Tensor,
+    normalized_adjacency: torch.Tensor,
+    y: torch.Tensor,
+) -> torch.Tensor:
+    # Number of input features per node.
+    #
+    # If x shape is [4, 3],
+    # then input_features = 3.
+    input_features = x.shape[1]
+
+    # Small hidden size for learning/demo purposes.
+    hidden_features = 4
+
+    # Number of output classes.
+    #
+    # If labels are 0 and 1,
+    # then output_classes = 2.
+    output_classes = int(y.max().item()) + 1
+
+    model = TinyManualGCN(
+        input_features=input_features,
+        hidden_features=hidden_features,
+        output_classes=output_classes,
+    )
+
+    # Run a forward pass.
+    #
+    # This is not training yet.
+    # We are only checking that the model can produce logits.
+    logits = model(
+        x=x,
+        normalized_adjacency=normalized_adjacency,
+    )
+
+    print()
+    print("Tiny manual GCN model summary")
+    print(
+        {
+            "input_x_shape": list(x.shape),
+            "hidden_features": hidden_features,
+            "output_classes": output_classes,
+            "logits_shape": list(logits.shape),
+        }
+    )
+
+    print()
+    print("Node logits")
+    print(logits)
+
+    return logits
+
+
 def main() -> None:
 
     x, adjacency, y = build_toy_graph()
@@ -232,6 +366,12 @@ def main() -> None:
     run_one_manual_gcn_layer_demo(
         x=x,
         normalized_adjacency=normalized_adjacency,
+    )
+
+    run_tiny_manual_gcn_demo(
+        x=x,
+        normalized_adjacency=normalized_adjacency,
+        y=y,
     )
 
 
