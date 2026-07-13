@@ -301,7 +301,7 @@ def run_tiny_manual_gcn_demo(
     input_features = x.shape[1]
 
     # Small hidden size for learning/demo purposes.
-    hidden_features = 4
+    hidden_features = 20
 
     # Number of output classes.
     #
@@ -328,6 +328,7 @@ def run_tiny_manual_gcn_demo(
     print("Tiny manual GCN model summary")
     print(
         {
+            "model parameters": [(param.shape, param) for param in model.parameters()],
             "input_x_shape": list(x.shape),
             "hidden_features": hidden_features,
             "output_classes": output_classes,
@@ -340,6 +341,184 @@ def run_tiny_manual_gcn_demo(
     print(logits)
 
     return logits
+
+
+def train_tiny_manual_gcn(
+    x: torch.Tensor,
+    normalized_adjacency: torch.Tensor,
+    y: torch.Tensor,
+    ) -> TinyManualGCN:
+
+    # Make results reproducible.
+    # This helps us see similar training behavior each time we run the script.
+    torch.manual_seed(42)
+
+    # Read the number of input features from x.
+    #
+    # Example:
+    #   x shape = [4, 3]
+    #   input_features = 3
+    input_features = x.shape[1]
+
+    # Choose a small hidden size for this learning lab.
+    hidden_features = 4
+
+    # Read the number of output classes from y.
+    #
+    # Example:
+    #   y values = [0, 1]
+    #   output_classes = 2
+    output_classes = int(y.max().item()) + 1
+
+    # Build the tiny two-layer manual GCN.
+    model = TinyManualGCN(
+        input_features=input_features,
+        hidden_features=hidden_features,
+        output_classes=output_classes,
+    )
+
+    # Adam updates the learnable weights inside our two manual GCN layers.
+    optimizer = torch.optim.Adam(
+        model.parameters(),
+        lr=0.05,
+    )
+
+    # Save copies of the initial weights.
+    # We will compare these against the final weights after training.
+    # If the weights changed, optimizer.step() actually updated the model.
+    initial_layer1_weight = model.layer1.weight.detach().clone()
+    initial_layer2_weight = model.layer2.weight.detach().clone()
+
+    # Number of full training passes.
+    epochs = 100
+
+    print()
+    print("Training tiny manual GCN")
+
+    for epoch in range(1, epochs + 1):
+        # ------------------------------------------------------------
+        # TRAINING MODE
+        # ------------------------------------------------------------
+        # This is good habit, even though our tiny model has no dropout.
+        model.train()
+
+        # ------------------------------------------------------------
+        # CLEAR OLD GRADIENTS
+        # ------------------------------------------------------------
+        # PyTorch accumulates gradients by default.
+        # So before each new training step, we reset them.
+        optimizer.zero_grad()
+
+        # ------------------------------------------------------------
+        # FORWARD PASS
+        # ------------------------------------------------------------
+        # The model uses:
+        #   x                    -> node features
+        #   normalized_adjacency -> graph structure after normalization
+        #
+        # Output:
+        #   logits -> raw class scores for every node
+        #
+        # Shape:
+        #   logits = [num_nodes, output_classes]
+        logits = model(
+            x=x,
+            normalized_adjacency=normalized_adjacency,
+        )
+
+        # ------------------------------------------------------------
+        # LOSS CALCULATION
+        # ------------------------------------------------------------
+        # Cross entropy compares:
+        #   logits -> model predictions
+        #   y      -> true node labels
+        #
+        # Important:
+        #   We pass raw logits, not softmax probabilities.
+        #   F.cross_entropy internally applies log-softmax.
+        loss = F.cross_entropy(
+            logits,
+            y,
+        )
+
+        # ------------------------------------------------------------
+        # BACKWARD PASS
+        # ------------------------------------------------------------
+        # This computes gradients for:
+        #   model.layer1.weight
+        #   model.layer2.weight
+        loss.backward()
+
+        # ------------------------------------------------------------
+        # GRADIENT INSPECTION
+        # ------------------------------------------------------------
+        # After loss.backward(), PyTorch fills .grad for each learnable parameter.
+        #
+        # If these gradients are missing or zero, the layer is not learning.
+        layer1_gradient_norm = model.layer1.weight.grad.norm().item()
+        layer2_gradient_norm = model.layer2.weight.grad.norm().item()
+
+        # ------------------------------------------------------------
+        # PARAMETER UPDATE
+        # ------------------------------------------------------------
+        # The optimizer uses the gradients to update the weights.
+        optimizer.step()
+
+        # ------------------------------------------------------------
+        # SIMPLE TRAINING ACCURACY
+        # ------------------------------------------------------------
+        # Pick the class with the largest logit for each node.
+        predictions = logits.argmax(dim=1)
+
+        # Compare predictions to true labels.
+        accuracy = (
+            predictions == y
+        ).float().mean().item()
+
+        # Print occasionally so we can see learning progress.
+        if epoch == 1 or epoch % 20 == 0 or epoch == epochs:
+            print(
+                {
+                    "epoch": epoch,
+                    "loss": float(loss.item()),
+                    "accuracy": float(accuracy),
+                    "layer1_gradient_norm": layer1_gradient_norm,
+                    "layer2_gradient_norm": layer2_gradient_norm,
+                }
+            )
+
+    print()
+    print("Final predictions")
+    print(predictions)
+
+    print()
+    print("True labels")
+    print(y)
+
+    # ------------------------------------------------------------
+    # WEIGHT UPDATE INSPECTION
+    # ------------------------------------------------------------
+    # Gradients prove that learning signal reached the weights.
+    # Weight deltas prove that optimizer.step() actually changed the weights.
+    layer1_weight_change = (
+        model.layer1.weight.detach() - initial_layer1_weight
+    ).norm().item()
+
+    layer2_weight_change = (
+        model.layer2.weight.detach() - initial_layer2_weight
+    ).norm().item()
+
+    print()
+    print("Weight update summary")
+    print(
+        {
+            "layer1_weight_change_norm": float(layer1_weight_change),
+            "layer2_weight_change_norm": float(layer2_weight_change),
+        }
+    )
+
+    return model
+
 
 
 def main() -> None:
@@ -369,6 +548,12 @@ def main() -> None:
     )
 
     run_tiny_manual_gcn_demo(
+        x=x,
+        normalized_adjacency=normalized_adjacency,
+        y=y,
+    )
+
+    train_tiny_manual_gcn(
         x=x,
         normalized_adjacency=normalized_adjacency,
         y=y,
