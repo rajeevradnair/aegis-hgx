@@ -10,6 +10,14 @@ from torch_geometric.data import Data
 import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.nn import GCNConv
+from sklearn.metrics import (
+    accuracy_score,
+    average_precision_score,
+    f1_score,
+    precision_score,
+    recall_score,
+    roc_auc_score,
+)
 
 
 CONFIG_PATH = "configs/lanl_gcn_pyg.yaml"
@@ -101,6 +109,413 @@ def validate_config(config: dict[str, Any]) -> None:
     if abs((train_ratio + val_ratio + test_ratio) - 1.0) > 1e-6:
         raise ValueError("Train/val/test ratios must add up to 1.0.")
 
+    required_training_keys = [
+        "epochs",
+        "learning_rate",
+        "weight_decay",
+    ]
+
+    for key in required_training_keys:
+        if key not in config["training"]:
+            raise ValueError(f"Missing training.{key} in config.")
+
+
+def build_class_weights(data: Data) -> torch.Tensor:
+    # We calculate class weights from the training nodes only.
+    # This avoids using validation/test label distribution to shape training behavior.
+    train_labels = data.y[data.train_mask]
+
+    # Number of classes.
+    # For binary labels 0 and 1, num_classes = 2.
+    num_classes = int(data.y.max().item()) + 1
+
+    # Count how many training examples exist for each class.
+    # Example: class_counts might be tensor([16800, 71]).
+    class_counts = torch.bincount(
+        train_labels,
+        minlength=num_classes,
+    ).float()
+
+    # Avoid division by zero if a class is missing from the training split.
+    class_counts = class_counts.clamp(min=1.0)
+
+    # Inverse frequency weighting:
+    # rare class gets larger weight, common class gets smaller weight.
+    class_weights = train_labels.numel() / (
+        num_classes * class_counts
+    )
+
+    return class_weights
+
+
+def build_optimizer(
+    model: LanlGCN,
+    config: dict[str, Any],
+) -> torch.optim.Optimizer:
+    # Adam is a standard optimizer for neural network baselines.
+    # It updates model weights using gradients from backpropagation.
+    optimizer = torch.optim.Adam(
+        model.parameters(),
+        lr=float(config["training"]["learning_rate"]),
+        weight_decay=float(config["training"]["weight_decay"]),
+    )
+
+    return optimizer
+
+
+def run_one_training_step(
+    model: LanlGCN,
+    data: Data,
+    optimizer: torch.optim.Optimizer,
+    class_weights: torch.Tensor,
+) -> dict[str, float]:
+    # Turn on training behavior.
+    # This matters because dropout is active during training.
+    model.train()
+
+    # Clear old gradients.
+    # PyTorch accumulates gradients by default, so we reset them every step.
+    optimizer.zero_grad()
+
+    # Forward pass:
+    # The GCN reads node features and graph structure.
+    # Output shape: [num_nodes, num_classes]
+    logits = model(
+        data.x,
+        data.edge_index,
+    )
+
+    # Select only training nodes.
+    # We do not train on validation or test nodes.
+    train_logits = logits[data.train_mask]
+    train_labels = data.y[data.train_mask]
+
+    # Calculate supervised classification loss.
+    # Cross entropy compares raw logits against class labels.
+    # Penalize mistakes on class 1 more heavily. Mistakes is nothing but loss.
+    loss = F.cross_entropy(
+        train_logits,
+        train_labels,
+        weight=class_weights,
+    )
+
+    # Backward pass:
+    # PyTorch computes gradients for every trainable model parameter.
+    loss.backward()
+
+    # Optimizer step:
+    # Adam updates the model weights using the gradients.
+    optimizer.step()
+
+    # Simple training accuracy for this one step.
+    # This is only a sanity check, not the final metric.
+    train_predictions = train_logits.argmax(dim=1)
+    train_accuracy = (
+        train_predictions == train_labels
+    ).float().mean().item()
+
+    return {
+        "one_step_train_loss": float(loss.item()),
+        "one_step_train_accuracy": float(train_accuracy),
+    }
+
+
+def print_one_training_step_summary(
+    step_metrics: dict[str, float],
+    class_weights: torch.Tensor,
+) -> None:
+    print()
+    print("One training step summary")
+    print(
+        {
+            "one_step_train_loss": step_metrics["one_step_train_loss"],
+            "one_step_train_accuracy": step_metrics["one_step_train_accuracy"],
+            "class_weights": class_weights.tolist(),
+        }
+    )
+
+
+def train_model(
+    model: LanlGCN,
+    data: Data,
+    optimizer: torch.optim.Optimizer,
+    class_weights: torch.Tensor,
+    config: dict[str, Any],
+) -> tuple[list[dict[str, float]], dict[str, torch.Tensor]]:
+    # Number of times we train over the graph.
+    epochs = int(config["training"]["epochs"])
+
+    # We store metrics from every epoch here.
+    training_history: list[dict[str, float]] = []
+
+    # We keep track of the best validation loss.
+    # Lower validation loss means the model is doing better on held-out nodes.
+    best_val_loss = float("inf")
+
+    # This will store the best model weights seen during training.
+    best_model_state: dict[str, torch.Tensor] = {}
+
+    for epoch in range(1, epochs + 1):
+        # ------------------------------------------------------------
+        # TRAINING PHASE
+        # ------------------------------------------------------------
+
+        # Training mode turns dropout ON.
+        model.train()
+
+        # Clear gradients from the previous epoch.
+        optimizer.zero_grad()
+
+        # Forward pass over the full graph.
+        # The model uses:
+        #   data.x          -> node features
+        #   data.edge_index -> graph structure
+        #
+        # Output:
+        #   logits -> raw class scores for every node
+        #
+        # Shape:
+        #   logits = [num_nodes, num_classes]
+        logits = model(
+            data.x,
+            data.edge_index,
+        )
+
+        # Select only the training nodes.
+        # We do not train on validation or test nodes.
+        train_logits = logits[data.train_mask]
+        train_labels = data.y[data.train_mask]
+
+        # Calculate training loss.
+        # Cross entropy compares raw logits against true class labels.
+        train_loss = F.cross_entropy(
+            train_logits,
+            train_labels,
+            weight=class_weights,
+        )
+
+        # Backpropagation:
+        # PyTorch computes gradients for all trainable parameters.
+        train_loss.backward()
+
+        # Optimizer step:
+        # Adam updates the GCN weights using those gradients.
+        optimizer.step()
+
+        # Calculate simple training accuracy.
+        train_predictions = train_logits.argmax(dim=1)
+        train_accuracy = (
+            train_predictions == train_labels
+        ).float().mean().item()
+
+        # ------------------------------------------------------------
+        # VALIDATION PHASE
+        # ------------------------------------------------------------
+
+        # Evaluation mode turns dropout OFF.
+        model.eval()
+
+        # We do not need gradients for validation.
+        with torch.no_grad():
+            # Forward pass again, now with dropout disabled.
+            val_logits_all_nodes = model(
+                data.x,
+                data.edge_index,
+            )
+
+            # Select only validation nodes.
+            val_logits = val_logits_all_nodes[data.val_mask]
+            val_labels = data.y[data.val_mask]
+
+            # Calculate validation loss.
+            # This tells us how well the model performs on held-out nodes.
+            val_loss = F.cross_entropy(
+                val_logits,
+                val_labels,
+                weight=class_weights,
+            )
+
+            # Calculate validation accuracy.
+            val_predictions = val_logits.argmax(dim=1)
+            val_accuracy = (
+                val_predictions == val_labels
+            ).float().mean().item()
+
+        # ------------------------------------------------------------
+        # RECORD METRICS
+        # ------------------------------------------------------------
+
+        epoch_record = {
+            "epoch": float(epoch),
+            "train_loss": float(train_loss.item()),
+            "train_accuracy": float(train_accuracy),
+            "val_loss": float(val_loss.item()),
+            "val_accuracy": float(val_accuracy),
+        }
+
+        training_history.append(epoch_record)
+
+        # ------------------------------------------------------------
+        # TRACK BEST MODEL
+        # ------------------------------------------------------------
+
+        # If this epoch has the best validation loss so far,
+        # save a copy of the model weights.
+        if float(val_loss.item()) < best_val_loss:
+            best_val_loss = float(val_loss.item())
+
+            best_model_state = {
+                name: parameter.detach().cpu().clone()
+                for name, parameter in model.state_dict().items()
+            }
+
+        # Print progress occasionally.
+        # This avoids flooding the terminal.
+        if epoch == 1 or epoch == epochs or epoch % 10 == 0:
+            print(epoch_record)
+
+    return training_history, best_model_state
+
+
+def print_training_summary(
+    training_history: list[dict[str, float]],
+) -> None:
+    # First epoch tells us where training started.
+    first_epoch = training_history[0]
+
+    # Last epoch tells us where training ended.
+    final_epoch = training_history[-1]
+
+    # Best validation-loss epoch tells us which checkpoint performed best.
+    best_epoch = min(
+        training_history,
+        key=lambda record: record["val_loss"],
+    )
+
+    print()
+    print("GCN training summary")
+    print(
+        {
+            "first_epoch": first_epoch,
+            "final_epoch": final_epoch,
+            "best_val_loss_epoch": best_epoch,
+        }
+    )
+
+
+def evaluate_test_set(
+    model: LanlGCN,
+    data: Data,
+    best_model_state: dict[str, torch.Tensor],
+    positive_label: int,
+) -> dict[str, float]:
+    # Load the best model weights found during validation.
+    # We do not want to evaluate a worse final epoch if validation loss was better earlier.
+    model.load_state_dict(best_model_state)
+
+    # Evaluation mode turns dropout OFF.
+    model.eval()
+
+    # We do not calculate gradients during test evaluation.
+    # This is evaluation only, not training.
+    with torch.no_grad():
+        # Forward pass over the full graph.
+        # Shape: [num_nodes, num_classes]
+        logits = model(
+            data.x,
+            data.edge_index,
+        )
+
+        # Select only test nodes.
+        test_logits = logits[data.test_mask]
+        test_labels = data.y[data.test_mask]
+
+        # Convert logits to probabilities.
+        # For binary classification, column 1 is suspicious probability.
+        probabilities = torch.softmax(
+            test_logits,
+            dim=1,
+        )
+
+        positive_probabilities = probabilities[:, positive_label]
+
+        # Convert logits to hard class predictions.
+        predicted_labels = test_logits.argmax(dim=1)
+
+    # Move tensors to CPU NumPy arrays so sklearn can compute metrics.
+    y_true = test_labels.cpu().numpy()
+    y_pred = predicted_labels.cpu().numpy()
+    y_score = positive_probabilities.cpu().numpy()
+
+    # Accuracy = fraction of correct predictions.
+    accuracy = accuracy_score(
+        y_true,
+        y_pred,
+    )
+
+    # Precision = of predicted alerts, how many were truly positive?
+    precision = precision_score(
+        y_true,
+        y_pred,
+        pos_label=positive_label,
+        zero_division=0,
+    )
+
+    # Recall = of true positives, how many did we catch?
+    recall = recall_score(
+        y_true,
+        y_pred,
+        pos_label=positive_label,
+        zero_division=0,
+    )
+
+    # F1 balances precision and recall.
+    f1 = f1_score(
+        y_true,
+        y_pred,
+        pos_label=positive_label,
+        zero_division=0,
+    )
+
+    # ROC-AUC and PR-AUC need both classes to exist in the test set.
+    # If the test set has only one class, these metrics are undefined.
+    unique_test_labels = sorted(set(y_true.tolist()))
+
+    if len(unique_test_labels) == 2:
+        roc_auc = roc_auc_score(
+            y_true,
+            y_score,
+        )
+
+        pr_auc = average_precision_score(
+            y_true,
+            y_score,
+            pos_label=positive_label,
+        )
+    else:
+        roc_auc = float("nan")
+        pr_auc = float("nan")
+
+    return {
+        "test_accuracy": float(accuracy),
+        "test_precision": float(precision),
+        "test_recall": float(recall),
+        "test_f1": float(f1),
+        "test_roc_auc": float(roc_auc),
+        "test_pr_auc": float(pr_auc),
+        "test_positive_nodes": int((test_labels == positive_label).sum().item()),
+        "test_total_nodes": int(test_labels.numel()),
+    }
+
+
+def print_test_metrics(
+    test_metrics: dict[str, float],
+) -> None:
+    print()
+    print("GCN test-set metrics")
+    print(test_metrics)
+
+
 def create_node_masks(
     data: Data,
     config: dict[str, Any],
@@ -129,6 +544,8 @@ def create_node_masks(
     for label_value in label_values:
         # Find all nodes with this label.
         label_indices = torch.where(data.y == int(label_value))[0]
+
+        print(f"Label value: {label_value}, {label_indices[:10].tolist()}")
 
         # Shuffle only nodes from this label group.
         shuffled_label_indices = label_indices[
@@ -286,6 +703,13 @@ class LanlGCN(nn.Module):
     ) -> None:
         super().__init__()
 
+        self.input_channels = input_channels
+        self.hidden_channels = hidden_channels
+        self.output_channels = output_channels
+        # Dropout randomly zeroes part of the hidden representation during training.
+        # This helps reduce overfitting.
+        self.dropout = dropout
+
         # First graph convolution layer.
         # It reads the original node features from data.x.
         # Shape: [num_nodes, input_channels] -> [num_nodes, hidden_channels]
@@ -301,10 +725,6 @@ class LanlGCN(nn.Module):
             hidden_channels,
             output_channels,
         )
-
-        # Dropout randomly zeroes part of the hidden representation during training.
-        # This helps reduce overfitting.
-        self.dropout = dropout
 
     def forward(
         self,
@@ -391,8 +811,99 @@ def print_model_summary(
         {
             "model_class": model.__class__.__name__,
             "input_channels": int(data.x.shape[1]),
+            "hidden_channels": model.hidden_channels,
             "output_classes": int(data.y.max().item()) + 1,
             "trainable_parameters": trainable_parameters,
+        }
+    )
+
+def run_forward_pass_smoke_check(
+    model: LanlGCN,
+    data: Data,
+) -> torch.Tensor:
+    # Put the model in evaluation mode for this smoke check.
+    # This disables dropout, so the output is stable and easier to inspect.
+    model.eval()
+
+    # We are not training yet.
+    # no_grad tells PyTorch not to build a gradient graph.
+    # This saves memory and makes the check faster.
+    with torch.no_grad():
+        # Run one forward pass through the GCN.
+        # Inputs:
+        #   data.x          -> node feature matrix
+        #   data.edge_index -> graph connectivity
+        #
+        # Output:
+        #   logits -> raw class scores for every node
+        logits = model(
+            data.x,
+            data.edge_index,
+        )
+
+    # The model should return one row per node.
+    expected_node_count = int(data.num_nodes)
+
+    # The model should return one column per class.
+    expected_class_count = int(data.y.max().item()) + 1
+
+    # Check rank.
+    # logits must be a 2D tensor: [num_nodes, num_classes]
+    if logits.ndim != 2:
+        raise ValueError("GCN logits must have shape [num_nodes, num_classes].")
+
+    # Check number of rows.
+    if logits.shape[0] != expected_node_count:
+        raise ValueError(
+            "GCN logits row count must match the number of graph nodes."
+        )
+
+    # Check number of columns.
+    if logits.shape[1] != expected_class_count:
+        raise ValueError(
+            "GCN logits column count must match the number of node classes."
+        )
+
+    # Check for NaN or infinite values.
+    # These usually indicate numerical instability or corrupted inputs.
+    if not bool(torch.isfinite(logits).all().item()):
+        raise ValueError("GCN logits contain NaN or infinite values.")
+
+    return logits
+
+
+def print_forward_pass_summary(
+    logits: torch.Tensor,
+    data: Data,
+) -> None:
+    # Convert logits to probabilities for easier inspection.
+    # We do not use these for training yet.
+    probabilities = torch.softmax(
+        logits,
+        dim=1,
+    )
+
+    # Probability assigned to the positive class.
+    # For binary classification, class 1 means suspicious.
+    positive_class_probabilities = probabilities[:, 1]
+
+    print()
+    print("Forward-pass smoke check summary")
+    print(
+        {
+            "logits_shape": list(logits.shape),
+            "expected_nodes": int(data.num_nodes),
+            "expected_classes": int(data.y.max().item()) + 1,
+            "logits_are_finite": bool(torch.isfinite(logits).all().item()),
+            "positive_probability_min": float(
+                positive_class_probabilities.min().item()
+            ),
+            "positive_probability_max": float(
+                positive_class_probabilities.max().item()
+            ),
+            "positive_probability_mean": float(
+                positive_class_probabilities.mean().item()
+            ),
         }
     )
 
@@ -443,6 +954,42 @@ def main() -> None:
         model=model,
         data=data,
     )
+
+    logits = run_forward_pass_smoke_check(
+        model=model,
+        data=data,
+    )
+
+    print_forward_pass_summary(
+        logits=logits,
+        data=data,
+    )
+
+    class_weights = build_class_weights(data)
+
+    optimizer = build_optimizer(
+        model=model,
+        config=config,
+    )
+
+    training_history, best_model_state = train_model(
+        model=model,
+        data=data,
+        optimizer=optimizer,
+        class_weights=class_weights,
+        config=config,
+    )
+
+    print_training_summary(training_history)
+
+    test_metrics = evaluate_test_set(
+        model=model,
+        data=data,
+        best_model_state=best_model_state,
+        positive_label=int(config["evaluation"]["positive_label"]),
+    )
+
+    print_test_metrics(test_metrics)
 
 
 if __name__ == "__main__":
