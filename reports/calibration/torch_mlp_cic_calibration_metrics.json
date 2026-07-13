@@ -8,16 +8,16 @@
   "test_positive_rows": 37,
   "test_negative_rows": 163,
   "calibration": {
-    "brier_score": 0.04486590251326561,
-    "expected_calibration_error": 0.07261133080348373,
+    "brier_score": 0.03745013102889061,
+    "expected_calibration_error": 0.0632196720177308,
     "n_bins": 10,
     "strategy": "uniform"
   },
   "probability_summary": {
     "min_probability": 0.0,
-    "max_probability": 0.9999872446060181,
-    "mean_probability": 0.2532408535480499,
-    "median_probability": 0.01649579033255577
+    "max_probability": 0.9999995231628418,
+    "mean_probability": 0.2429453283548355,
+    "median_probability": 0.01106830220669508
   },
   "artifact_paths": {
     "metrics_path": "reports/calibration/torch_mlp_cic_calibration_metrics.json",

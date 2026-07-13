@@ -3,7 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 import argparse
-
+from datetime import datetime, timezone
+import json
 import torch
 import yaml
 from torch_geometric.data import Data
@@ -21,6 +22,38 @@ from sklearn.metrics import (
 
 
 CONFIG_PATH = "configs/lanl_gcn_pyg.yaml"
+
+
+def make_json_safe(value: Any) -> Any:
+    # Convert dictionaries recursively.
+    if isinstance(value, dict):
+        return {
+            str(key): make_json_safe(item)
+            for key, item in value.items()
+        }
+
+    # Convert lists recursively.
+    if isinstance(value, list):
+        return [
+            make_json_safe(item)
+            for item in value
+        ]
+
+    # Convert tuples to JSON-compatible lists.
+    if isinstance(value, tuple):
+        return [
+            make_json_safe(item)
+            for item in value
+        ]
+
+    # Convert PyTorch scalar tensors to normal Python values.
+    if isinstance(value, torch.Tensor):
+        if value.numel() == 1:
+            return value.item()
+
+        return value.detach().cpu().tolist()
+
+    return value
 
 
 def load_config(config_path: str | Path) -> dict[str, Any]:
@@ -365,8 +398,8 @@ def train_model(
             best_val_loss = float(val_loss.item())
 
             best_model_state = {
-                name: parameter.detach().cpu().clone()
-                for name, parameter in model.state_dict().items()
+                param_name: param_weight_tensor.detach().cpu().clone() 
+                for param_name, param_weight_tensor in model.state_dict().items()
             }
 
         # Print progress occasionally.
@@ -872,6 +905,104 @@ def run_forward_pass_smoke_check(
     return logits
 
 
+def save_training_outputs(
+    model: LanlGCN,
+    data: Data,
+    best_model_state: dict[str, torch.Tensor],
+    training_history: list[dict[str, float]],
+    test_metrics: dict[str, float],
+    config: dict[str, Any],
+    paths: dict[str, Path],
+) -> None:
+    # Make sure output folders exist before writing files.
+    paths["model"].parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    paths["metrics"].parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    # Load the best validation-loss weights back into the model.
+    # This ensures the saved checkpoint is the best checkpoint, not merely the final epoch.
+    model.load_state_dict(best_model_state)
+
+    # Save model checkpoint.
+    # We save enough information to rebuild and reload the model later.
+    checkpoint = {
+        "model_state_dict": model.state_dict(),
+        "model_class": model.__class__.__name__,
+        "input_channels": int(data.x.shape[1]),
+        "hidden_channels": int(config["model"]["hidden_channels"]),
+        "output_channels": int(data.y.max().item()) + 1,
+        "dropout": float(config["model"]["dropout"]),
+        "config": config,
+        "saved_at_utc": datetime.now(timezone.utc).isoformat(),
+    }
+
+    torch.save(
+        checkpoint,
+        paths["model"],
+    )
+
+    # Save metrics and training history as JSON.
+    # This is human-readable and easy to compare across experiments.
+    metrics_payload = {
+        "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+        "phase": "gcn_training_and_evaluation",
+        "graph_path": str(paths["graph"]),
+        "model_path": str(paths["model"]),
+        "metrics_path": str(paths["metrics"]),
+        "model": {
+            "class": model.__class__.__name__,
+            "input_channels": int(data.x.shape[1]),
+            "hidden_channels": int(config["model"]["hidden_channels"]),
+            "output_channels": int(data.y.max().item()) + 1,
+            "dropout": float(config["model"]["dropout"]),
+        },
+        "training": {
+            "epochs": int(config["training"]["epochs"]),
+            "learning_rate": float(config["training"]["learning_rate"]),
+            "weight_decay": float(config["training"]["weight_decay"]),
+        },
+        "split_counts": {
+            "train_nodes": int(data.train_mask.sum().item()),
+            "val_nodes": int(data.val_mask.sum().item()),
+            "test_nodes": int(data.test_mask.sum().item()),
+        },
+        "test_metrics": test_metrics,
+        "best_validation_epoch": min(
+            training_history,
+            key=lambda record: record["val_loss"],
+        ),
+        "training_history": training_history,
+    }
+
+    paths["metrics"].write_text(
+        json.dumps(
+            make_json_safe(metrics_payload),
+            indent=2,
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
+
+
+def print_saved_output_paths(
+    paths: dict[str, Path],
+) -> None:
+    print()
+    print("Saved GCN training outputs")
+    print(
+        {
+            "model_checkpoint": str(paths["model"]),
+            "metrics_json": str(paths["metrics"]),
+        }
+    )
+
+
 def print_forward_pass_summary(
     logits: torch.Tensor,
     data: Data,
@@ -990,6 +1121,19 @@ def main() -> None:
     )
 
     print_test_metrics(test_metrics)
+
+
+    save_training_outputs(
+        model=model,
+        data=data,
+        best_model_state=best_model_state,
+        training_history=training_history,
+        test_metrics=test_metrics,
+        config=config,
+        paths=paths,
+    )
+
+    print_saved_output_paths(paths)
 
 
 if __name__ == "__main__":

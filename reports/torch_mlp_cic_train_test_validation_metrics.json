@@ -10,24 +10,24 @@
   "test_positive_rows": 37,
   "test_negative_rows": 163,
   "threshold_independent_metrics": {
-    "test_loss": 0.23419395089149475,
-    "test_pr_auc": 0.9705810340473415,
-    "test_roc_auc": 0.984745481677997
+    "test_loss": 0.22265785932540894,
+    "test_pr_auc": 0.9756398920305258,
+    "test_roc_auc": 0.9873984413861715
   },
   "default_threshold": 0.5,
   "default_threshold_metrics": {
-    "test_accuracy": 0.965,
-    "test_precision": 0.8571428571428571,
+    "test_accuracy": 0.96,
+    "test_precision": 0.8372093023255814,
     "test_recall": 0.972972972972973,
-    "test_f1": 0.9113924050632912,
+    "test_f1": 0.9,
     "test_true_positive": 36,
-    "test_false_positive": 6,
-    "test_true_negative": 157,
+    "test_false_positive": 7,
+    "test_true_negative": 156,
     "test_false_negative": 1,
     "test_confusion_matrix": [
       [
-        157,
-        6
+        156,
+        7
       ],
       [
         1,
@@ -35,10 +35,10 @@
       ]
     ]
   },
-  "best_validation_epoch": 15,
+  "best_validation_epoch": 27,
   "best_validation_metric": "validation_pr_auc",
-  "best_validation_pr_auc": 0.9052329755479034,
-  "best_validation_roc_auc": 0.9187179487179488,
+  "best_validation_pr_auc": 0.902626704878867,
+  "best_validation_roc_auc": 0.912051282051282,
   "selected_threshold": 0.5,
   "selected_threshold_reason": "Default threshold used for baseline comparability. Threshold tuning is handled in a later evaluation step.",
   "artifact_paths": {
