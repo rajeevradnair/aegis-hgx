@@ -523,6 +523,8 @@ def train_tiny_manual_gcn(
 
 def main() -> None:
 
+    # Important remember from scratch GCN is not ingesting edge_index. 
+    # It takes node feature matrix, normalized adjacency matrix, and output labels 
     x, adjacency, y = build_toy_graph()
 
     normalized_adjacency = normalize_adjacency(adjacency)
