@@ -3,6 +3,9 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 from typing import Any
+from datetime import datetime, timezone
+import json
+import math
 
 import torch
 import torch.nn as nn
@@ -21,6 +24,30 @@ from sklearn.metrics import (
 
 
 CONFIG_PATH = "configs/lanl_graphsage_pyg.yaml"
+
+
+def make_json_safe(value: Any) -> Any:
+    # JSON cannot safely represent NaN or infinity in strict tools.
+    # This helper converts those values to None.
+    if isinstance(value, float):
+        if math.isnan(value) or math.isinf(value):
+            return None
+
+        return value
+
+    if isinstance(value, dict):
+        return {
+            key: make_json_safe(item)
+            for key, item in value.items()
+        }
+
+    if isinstance(value, list):
+        return [
+            make_json_safe(item)
+            for item in value
+        ]
+
+    return value
 
 
 def load_config(config_path: str) -> dict[str, Any]:
@@ -57,6 +84,12 @@ def validate_config(config: dict[str, Any]) -> None:
     if "graph_path" not in config["input"]:
         raise ValueError("Missing config value: input.graph_path")
 
+    if "model_path" not in config["output"]:
+        raise ValueError("Missing config value: output.model_path")
+
+    if "metrics_path" not in config["output"]:
+        raise ValueError("Missing config value: output.metrics_path")
+    
 
 def load_pyg_graph(graph_path: str) -> Data:
     # Load the PyTorch Geometric Data object created earlier.
@@ -786,6 +819,114 @@ def print_test_metrics(test_metrics: dict[str, float]) -> None:
     print(test_metrics)
 
 
+def save_training_outputs(
+    model: LanlGraphSAGE,
+    data: Data,
+    best_model_state: dict[str, torch.Tensor],
+    training_history: list[dict[str, float]],
+    test_metrics: dict[str, float],
+    config: dict[str, Any],
+) -> None:
+    # Read output paths from config.
+    model_path = Path(config["output"]["model_path"])
+    metrics_path = Path(config["output"]["metrics_path"])
+
+    # Create parent directories if they do not exist.
+    model_path.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    metrics_path.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    # Restore the best validation checkpoint before saving.
+    model.load_state_dict(best_model_state)
+
+    # Save model checkpoint.
+    #
+    # This is enough to reconstruct the model later because we store:
+    #   model weights
+    #   model dimensions
+    #   aggregation type
+    #   dropout
+    #   config
+    checkpoint = {
+        "model_state_dict": best_model_state,
+        "model_class": model.__class__.__name__,
+        "input_channels": int(data.x.shape[1]),
+        "hidden_channels": int(config["model"]["hidden_channels"]),
+        "output_channels": int(data.y.max().item()) + 1,
+        "dropout": float(config["model"]["dropout"]),
+        "aggregation": str(config["model"]["aggregation"]),
+        "config": config,
+        "saved_at_utc": datetime.now(timezone.utc).isoformat(),
+    }
+
+    torch.save(
+        checkpoint,
+        model_path,
+    )
+
+    # Identify the epoch with the best validation loss.
+    best_epoch_record = min(
+        training_history,
+        key=lambda record: record["val_loss"],
+    )
+
+    # Build metrics payload.
+    metrics_payload = {
+        "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+        "phase": "graphsage_training_and_evaluation",
+        "graph_path": config["input"]["graph_path"],
+        "model_path": str(model_path),
+        "metrics_path": str(metrics_path),
+        "model": {
+            "class": model.__class__.__name__,
+            "input_channels": int(data.x.shape[1]),
+            "hidden_channels": int(config["model"]["hidden_channels"]),
+            "output_channels": int(data.y.max().item()) + 1,
+            "dropout": float(config["model"]["dropout"]),
+            "aggregation": str(config["model"]["aggregation"]),
+        },
+        "training": {
+            "epochs": int(config["training"]["epochs"]),
+            "learning_rate": float(config["training"]["learning_rate"]),
+            "weight_decay": float(config["training"]["weight_decay"]),
+        },
+        "split_counts": {
+            "train_nodes": int(data.train_mask.sum().item()),
+            "val_nodes": int(data.val_mask.sum().item()),
+            "test_nodes": int(data.test_mask.sum().item()),
+            "train_positive_labels": int((data.y[data.train_mask] == 1).sum().item()),
+            "val_positive_labels": int((data.y[data.val_mask] == 1).sum().item()),
+            "test_positive_labels": int((data.y[data.test_mask] == 1).sum().item()),
+        },
+        "best_validation_epoch": best_epoch_record,
+        "test_metrics": test_metrics,
+        "training_history": training_history,
+    }
+
+    # Write metrics as readable JSON.
+    metrics_path.write_text(
+        json.dumps(
+            make_json_safe(metrics_payload),
+            indent=2,
+        )
+    )
+
+    print()
+    print("Saved GraphSAGE training outputs")
+    print(
+        {
+            "model_path": str(model_path),
+            "metrics_path": str(metrics_path),
+        }
+    )
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Train a GraphSAGE baseline on the LANL PyG graph."
@@ -853,6 +994,14 @@ def main() -> None:
 
     print_test_metrics(test_metrics)
 
+    save_training_outputs(
+        model=model,
+        data=data,
+        best_model_state=best_model_state,
+        training_history=training_history,
+        test_metrics=test_metrics,
+        config=config,
+    )
 
 if __name__ == "__main__":
     main()
