@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+
 def build_toy_graph() -> tuple[torch.Tensor, dict[int, list[int]], torch.Tensor]:
     # Node feature matrix.
     #
@@ -55,26 +56,23 @@ def mean_aggregate_neighbors(
     x: torch.Tensor,
     neighbors: dict[int, list[int]],
 ) -> torch.Tensor:
-    
-    # We will store one neighbor-mean vector per node.
+    # Store one mean-neighbor vector per node.
     #
-    # Shape should match x:
+    # Shape:
     #   [num_nodes, num_node_features]
     neighbor_means = torch.zeros_like(x)
 
-    # Loop over every node in the graph.
+    # Loop over every node in the adjacency list.
     for node_id, neighbor_ids in neighbors.items():
         # If a node has no neighbors, keep its neighbor summary as zeros.
-        #
-        # In real systems, we may choose a different strategy.
         if not neighbor_ids:
             continue
 
         # Select feature rows for this node's neighbors.
         #
-        # If neighbor_ids = [0, 2, 3],
-        # then neighbor_features shape is:
-        #   [3, num_node_features]
+        # Example:
+        #   neighbor_ids = [0, 2, 3]
+        #   x[neighbor_ids] shape = [3, num_node_features]
         neighbor_features = x[neighbor_ids]
 
         # Average neighbor features.
@@ -124,7 +122,7 @@ class ManualGraphSAGELayer(nn.Module):
         x: torch.Tensor,
         neighbor_means: torch.Tensor,
     ) -> torch.Tensor:
-        # x contains the node's own features.
+        # x contains each node's own features.
         #
         # Shape:
         #   [num_nodes, input_features]
@@ -161,16 +159,10 @@ def run_one_manual_graphsage_layer_demo(
     x: torch.Tensor,
     neighbor_means: torch.Tensor,
 ) -> torch.Tensor:
-    # Read the number of input features from x.
-    #
-    # If x shape is [4, 3],
-    # then input_features = 3.
+    # Number of input features per node.
     input_features = x.shape[1]
 
-    # Choose a small output size for the demo.
-    #
-    # This means each node goes from 3 input features
-    # to 2 learned hidden features.
+    # Small output size for the demo.
     output_features = 2
 
     layer = ManualGraphSAGELayer(
@@ -178,7 +170,6 @@ def run_one_manual_graphsage_layer_demo(
         output_features=output_features,
     )
 
-    # Run one manual GraphSAGE layer.
     hidden = layer(
         x=x,
         neighbor_means=neighbor_means,
@@ -214,9 +205,6 @@ class TinyManualGraphSAGE(nn.Module):
 
         # First manual GraphSAGE layer.
         #
-        # Purpose:
-        #   Convert raw node features into hidden node embeddings.
-        #
         # Shape:
         #   [num_nodes, input_features]
         #   -> [num_nodes, hidden_features]
@@ -226,9 +214,6 @@ class TinyManualGraphSAGE(nn.Module):
         )
 
         # Second manual GraphSAGE layer.
-        #
-        # Purpose:
-        #   Convert hidden node embeddings into class logits.
         #
         # Shape:
         #   [num_nodes, hidden_features]
@@ -243,16 +228,11 @@ class TinyManualGraphSAGE(nn.Module):
         x: torch.Tensor,
         neighbors: dict[int, list[int]],
     ) -> torch.Tensor:
-        # x contains current node features.
-        #
-        # Shape:
-        #   [num_nodes, input_features]
-
         # ------------------------------------------------------------
         # FIRST GRAPH SAGE LAYER
         # ------------------------------------------------------------
 
-        # Compute mean neighbor features from the current x.
+        # Compute mean neighbor features from raw node features.
         #
         # Shape:
         #   [num_nodes, input_features]
@@ -261,30 +241,25 @@ class TinyManualGraphSAGE(nn.Module):
             neighbors=neighbors,
         )
 
-        # Apply the first manual GraphSAGE layer.
-        #
-        # Shape:
-        #   [num_nodes, input_features]
-        #   -> [num_nodes, hidden_features]
+        # First layer:
+        #   raw node features + raw neighbor means -> hidden embeddings
         hidden = self.layer1(
             x=x,
             neighbor_means=neighbor_means_layer1,
         )
 
         # ReLU adds nonlinearity.
-        #
-        # Without ReLU, stacked linear layers are still mostly linear.
         hidden = F.relu(hidden)
 
         # ------------------------------------------------------------
         # SECOND GRAPH SAGE LAYER
         # ------------------------------------------------------------
 
-        # Important:
-        #   After layer 1, each node now has a hidden embedding.
+        # Compute mean neighbor features from hidden embeddings.
         #
-        # So for layer 2, neighbor aggregation must happen over hidden,
-        # not over the original x.
+        # This is important:
+        #   layer 2 aggregates learned embeddings,
+        #   not raw features again.
         #
         # Shape:
         #   [num_nodes, hidden_features]
@@ -293,22 +268,212 @@ class TinyManualGraphSAGE(nn.Module):
             neighbors=neighbors,
         )
 
-        # Apply the second manual GraphSAGE layer.
-        #
-        # Shape:
-        #   [num_nodes, hidden_features]
-        #   -> [num_nodes, output_classes]
+        # Second layer:
+        #   hidden embeddings + hidden neighbor means -> class logits
         logits = self.layer2(
             x=hidden,
             neighbor_means=neighbor_means_layer2,
         )
 
-        # logits are raw class scores.
-        #
         # Shape:
         #   [num_nodes, output_classes]
         return logits
 
+
+def run_tiny_manual_graphsage_demo(
+    x: torch.Tensor,
+    neighbors: dict[int, list[int]],
+    y: torch.Tensor,
+) -> torch.Tensor:
+    input_features = x.shape[1]
+    hidden_features = 4
+    output_classes = int(y.max().item()) + 1
+
+    model = TinyManualGraphSAGE(
+        input_features=input_features,
+        hidden_features=hidden_features,
+        output_classes=output_classes,
+    )
+
+    # Forward pass only.
+    # No training happens here.
+    logits = model(
+        x=x,
+        neighbors=neighbors,
+    )
+
+    print()
+    print("Tiny manual GraphSAGE model summary")
+    print(
+        {
+            "input_x_shape": list(x.shape),
+            "hidden_features": hidden_features,
+            "output_classes": output_classes,
+            "logits_shape": list(logits.shape),
+        }
+    )
+
+    print()
+    print("Node logits")
+    print(logits)
+
+    return logits
+
+
+def train_tiny_manual_graphsage(
+    x: torch.Tensor,
+    neighbors: dict[int, list[int]],
+    y: torch.Tensor,
+) -> TinyManualGraphSAGE:
+    # Make the run reproducible.
+    torch.manual_seed(42)
+
+    input_features = x.shape[1]
+    hidden_features = 4
+    output_classes = int(y.max().item()) + 1
+
+    model = TinyManualGraphSAGE(
+        input_features=input_features,
+        hidden_features=hidden_features,
+        output_classes=output_classes,
+    )
+
+    optimizer = torch.optim.Adam(
+        model.parameters(),
+        lr=0.05,
+    )
+
+    # Save initial weights so we can prove training changed them.
+    initial_layer1_self_weight = model.layer1.self_weight.detach().clone()
+    initial_layer1_neighbor_weight = model.layer1.neighbor_weight.detach().clone()
+    initial_layer2_self_weight = model.layer2.self_weight.detach().clone()
+    initial_layer2_neighbor_weight = model.layer2.neighbor_weight.detach().clone()
+
+    epochs = 100
+
+    print()
+    print("Training tiny manual GraphSAGE")
+
+    for epoch in range(1, epochs + 1):
+        # Training mode.
+        model.train()
+
+        # Clear old gradients.
+        optimizer.zero_grad()
+
+        # Forward pass.
+        #
+        # logits shape:
+        #   [num_nodes, output_classes]
+        logits = model(
+            x=x,
+            neighbors=neighbors,
+        )
+
+        # Cross-entropy compares raw logits against true labels.
+        #
+        # Important:
+        #   do not apply softmax before F.cross_entropy.
+        loss = F.cross_entropy(
+            logits,
+            y,
+        )
+
+        # Backward pass.
+        #
+        # This computes gradients for all four learned matrices:
+        #   layer1.self_weight
+        #   layer1.neighbor_weight
+        #   layer2.self_weight
+        #   layer2.neighbor_weight
+        loss.backward()
+
+        # Inspect gradient norms before optimizer.step().
+        layer1_self_gradient_norm = model.layer1.self_weight.grad.norm().item()
+        layer1_neighbor_gradient_norm = model.layer1.neighbor_weight.grad.norm().item()
+        layer2_self_gradient_norm = model.layer2.self_weight.grad.norm().item()
+        layer2_neighbor_gradient_norm = model.layer2.neighbor_weight.grad.norm().item()
+
+        # Update weights.
+        optimizer.step()
+
+        # Simple training accuracy.
+        predictions = logits.argmax(dim=1)
+
+        accuracy = (
+            predictions == y
+        ).float().mean().item()
+
+        if epoch == 1 or epoch % 20 == 0 or epoch == epochs:
+            print(
+                {
+                    "epoch": epoch,
+                    "loss": float(loss.item()),
+                    "accuracy": float(accuracy),
+                    "layer1_self_gradient_norm": float(layer1_self_gradient_norm),
+                    "layer1_neighbor_gradient_norm": float(layer1_neighbor_gradient_norm),
+                    "layer2_self_gradient_norm": float(layer2_self_gradient_norm),
+                    "layer2_neighbor_gradient_norm": float(layer2_neighbor_gradient_norm),
+                }
+            )
+
+    print()
+    print("Final predictions")
+    print(predictions)
+
+    print()
+    print("True labels")
+    print(y)
+
+    # Prove the optimizer actually changed each learned matrix.
+    layer1_self_weight_change = (
+        model.layer1.self_weight.detach() - initial_layer1_self_weight
+    ).norm().item()
+
+    layer1_neighbor_weight_change = (
+        model.layer1.neighbor_weight.detach() - initial_layer1_neighbor_weight
+    ).norm().item()
+
+    layer2_self_weight_change = (
+        model.layer2.self_weight.detach() - initial_layer2_self_weight
+    ).norm().item()
+
+    layer2_neighbor_weight_change = (
+        model.layer2.neighbor_weight.detach() - initial_layer2_neighbor_weight
+    ).norm().item()
+
+    print()
+    print("Weight update summary")
+    print(
+        {
+            "layer1_self_weight_change_norm": float(layer1_self_weight_change),
+            "layer1_neighbor_weight_change_norm": float(layer1_neighbor_weight_change),
+            "layer2_self_weight_change_norm": float(layer2_self_weight_change),
+            "layer2_neighbor_weight_change_norm": float(layer2_neighbor_weight_change),
+        }
+    )
+
+    # Inference-style check.
+    #
+    # This does not update weights.
+    model.eval()
+
+    with torch.no_grad():
+        final_logits = model(
+            x=x,
+            neighbors=neighbors,
+        )
+
+        final_probabilities = torch.softmax(
+            final_logits,
+            dim=1,
+        )
+
+    print()
+    print("Final class probabilities")
+    print(final_probabilities)
+
+    return model
 
 
 def main() -> None:
@@ -341,6 +506,17 @@ def main() -> None:
         neighbor_means=neighbor_means,
     )
 
+    run_tiny_manual_graphsage_demo(
+        x=x,
+        neighbors=neighbors,
+        y=y,
+    )
+
+    train_tiny_manual_graphsage(
+        x=x,
+        neighbors=neighbors,
+        y=y,
+    )
 
 
 if __name__ == "__main__":
