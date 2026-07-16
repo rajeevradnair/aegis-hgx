@@ -163,3 +163,168 @@ new_a = weighted_messages.sum(dim=0)
 
 print("new representation for node A:", new_a)
 print("new A shape:", new_a.shape)
+
+
+# Each column represents one directed edge.
+#
+# First row:  sender node indices
+# Second row: receiver node indices
+#
+# Node indices:
+# A = 0
+# B = 1
+# C = 2
+#
+# Shape: [2, num_edges] = [2, 7]
+edge_index = torch.tensor(
+    [
+        [0, 1, 2, 0, 1, 1, 2],  # senders
+        [0, 0, 0, 1, 1, 2, 2],  # receivers
+    ]
+)
+
+print("edge_index:")
+print(edge_index)
+print("edge_index shape:", edge_index.shape)
+
+# edge_index[0] contains all sender indices.
+# edge_index[1] contains all receiver indices.
+#
+# Both shapes: [num_edges] = [7]
+sender_index = edge_index[0]
+receiver_index = edge_index[1]
+
+print("sender indices:", sender_index)
+print("receiver indices:", receiver_index)
+
+# Select one sender vector for each graph edge.
+#
+# z shape:             [3 nodes, 2 features]
+# sender_index shape:  [7 edges]
+# sender_z shape:      [7 edges, 2 features]
+sender_z = z[sender_index]
+
+print("sender vectors:")
+print(sender_z)
+print("sender_z shape:", sender_z.shape)
+
+# Select one receiver vector for each graph edge.
+#
+# receiver_z shape: [7 edges, 2 features]
+receiver_z = z[receiver_index]
+
+print("receiver vectors:")
+print(receiver_z)
+print("receiver_z shape:", receiver_z.shape)
+
+# For every edge, concatenate:
+#
+# [receiver features || sender features]
+#
+# receiver_z shape: [7, 2]
+# sender_z shape:   [7, 2]
+#
+# pair_features shape: [7, 4]
+all_pair_features = torch.cat(
+    [receiver_z, sender_z],
+    dim=1,
+)
+
+print("all receiver-sender pairs:")
+print(all_pair_features)
+print("shape:", all_pair_features.shape)
+
+# Each edge row contains 4 values.
+# The attention vector contains 4 values.
+#
+# [7 edges, 4 values]
+# @
+# [4 values]
+# =
+# [7 edge scores]
+
+all_raw_scores = all_pair_features @ attention_vector
+
+all_activated_scores = F.leaky_relu(
+    all_raw_scores,
+    negative_slope=0.2,
+)
+
+print("raw edge scores:", all_raw_scores)
+print("activated scores:", all_activated_scores)
+
+# Create space for one normalized coefficient per edge.
+#
+# Shape: [7 edges]
+attention_weights_all = torch.zeros_like(all_activated_scores)
+
+num_nodes = z.shape[0]
+
+for receiver_node in range(num_nodes):
+    # Find which edges enter this receiver.
+    #
+    # Example for receiver A:
+    # receiver_index == 0
+    #
+    # Result:
+    # [True, True, True, False, False, False, False]
+    incoming_mask = receiver_index == receiver_node
+
+    # Select only scores for edges entering this node.
+    incoming_scores = all_activated_scores[incoming_mask]
+
+    # Normalize only those incoming edge scores.
+    incoming_weights = torch.softmax(
+        incoming_scores,
+        dim=0,
+    )
+
+    # Place the normalized values back into their edge positions.
+    attention_weights_all[incoming_mask] = incoming_weights
+
+print("all attention weights:", attention_weights_all)
+
+for receiver_node in range(num_nodes):
+    incoming_mask = receiver_index == receiver_node
+
+    receiver_weight_sum = attention_weights_all[incoming_mask].sum()
+
+    print(
+        f"receiver {receiver_node} attention sum:",
+        receiver_weight_sum.item(),
+    )
+
+# attention_weights_all shape: [7]
+#
+# Add one feature dimension:
+# [7] → [7, 1]
+#
+# sender_z shape: [7, 2]
+#
+# Broadcasting:
+# [7, 1] * [7, 2] → [7, 2]
+all_weighted_messages = (
+    attention_weights_all.unsqueeze(1) * sender_z
+)
+
+print("all weighted messages:")
+print(all_weighted_messages)
+print("shape:", all_weighted_messages.shape)
+
+# Start every node output at zero.
+#
+# Shape: [3 nodes, 2 output features]
+new_node_features = torch.zeros_like(z)
+
+for edge_position in range(edge_index.shape[1]):
+    # Determine which node receives this edge's message.
+    receiver_node = receiver_index[edge_position]
+
+    # Add this weighted message to that receiver.
+    new_node_features[receiver_node] += all_weighted_messages[edge_position]
+
+print("new node representations:")
+print(new_node_features)
+print("shape:", new_node_features.shape)
+
+print(new_node_features[0])
