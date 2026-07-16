@@ -328,3 +328,195 @@ print(new_node_features)
 print("shape:", new_node_features.shape)
 
 print(new_node_features[0])
+
+ # Two independent feature-transformation matrices.
+#
+# Shape:
+# [num_heads, input_features, output_features]
+# =
+# [2, 2, 2]
+w_heads = torch.tensor(
+    [
+        # Head 1
+        [
+            [1.0, 0.0],
+            [0.0, 1.0],
+        ],
+
+        # Head 2
+        [
+            [1.0, 1.0],
+            [1.0, 0.0],
+        ],
+    ]
+)
+
+# One independent attention vector per head.
+#
+# Each vector scores:
+# [receiver features || sender features]
+#
+# Shape:
+# [num_heads, 2 * output_features]
+# =
+# [2, 4]
+attention_vectors = torch.tensor(
+    [
+        [1.0, 0.0, 0.0, 1.0],  # Head 1
+        [0.0, 1.0, 1.0, 0.0],  # Head 2
+    ]
+)
+
+print("w_heads shape:", w_heads.shape)
+print("attention_vectors shape:", attention_vectors.shape)
+
+
+num_heads = w_heads.shape[0]
+num_nodes = x.shape[0]
+
+head_outputs = []
+head_attention_weights = []
+
+for head in range(num_heads):
+    # Select this head's independent parameters.
+    #
+    # w_head shape: [2 input features, 2 output features]
+    # a_head shape: [4 concatenated pair features]
+    w_head = w_heads[head]
+    a_head = attention_vectors[head]
+
+    # Transform the complete node matrix using this head.
+    #
+    # [3, 2] @ [2, 2] = [3, 2]
+    z_head = x @ w_head
+
+    print(f"\nHead {head + 1}")
+    print("transformed node matrix:")
+    print(z_head)
+
+    # Gather one transformed sender vector per edge.
+    #
+    # Shape: [7 edges, 2 features]
+    sender_z = z_head[sender_index]
+
+    # Gather one transformed receiver vector per edge.
+    #
+    # Shape: [7 edges, 2 features]
+    receiver_z = z_head[receiver_index]
+
+    # Build one receiver-sender row per edge.
+    #
+    # [7, 2] concatenated with [7, 2]
+    # becomes [7, 4]
+    pair_features = torch.cat(
+        [receiver_z, sender_z],
+        dim=1,
+    )
+
+    print("pair feature shape:", pair_features.shape)
+
+    # Score every graph edge using this head's attention vector.
+    #
+    # [7 edges, 4 pair features]
+    # @
+    # [4 attention parameters]
+    # =
+    # [7 edge scores]
+    raw_scores = pair_features @ a_head
+
+    activated_scores = F.leaky_relu(
+        raw_scores,
+        negative_slope=0.2,
+    )
+
+    print("raw scores:", raw_scores)
+
+    # One normalized coefficient per edge for this head.
+    #
+    # Shape: [7 edges]
+    attention_weights = torch.zeros_like(activated_scores)
+
+    for receiver_node in range(num_nodes):
+        # Find all edges entering this receiver.
+        incoming_mask = receiver_index == receiver_node
+
+        # Get this head's scores for only that receiver.
+        incoming_scores = activated_scores[incoming_mask]
+
+        # Normalize those competing incoming edges.
+        incoming_weights = torch.softmax(
+            incoming_scores,
+            dim=0,
+        )
+
+        # Return them to their original edge positions.
+        attention_weights[incoming_mask] = incoming_weights
+
+    print("attention weights:", attention_weights)
+
+        # Weight each transformed sender vector.
+    #
+    # [7, 1] * [7, 2] = [7, 2]
+    weighted_messages = (
+        attention_weights.unsqueeze(1) * sender_z
+    )
+
+    # Allocate one output row per node.
+    #
+    # Shape: [3 nodes, 2 output features]
+    head_output = torch.zeros_like(z_head)
+
+    # Sum every edge message into its receiver.
+    for edge_position in range(edge_index.shape[1]):
+        receiver_node = receiver_index[edge_position]
+
+        head_output[receiver_node] += weighted_messages[edge_position]
+
+    print("head output:")
+    print(head_output)
+
+    # Save this head's results.
+    head_outputs.append(head_output)
+    head_attention_weights.append(attention_weights)
+
+print("\nHead 1 final output:")
+print(head_outputs[0])
+
+print("\nHead 2 final output:")
+print(head_outputs[1])
+
+# Join the feature columns from all heads.
+#
+# Head 1: [3 nodes, 2 features]
+# Head 2: [3 nodes, 2 features]
+#
+# Concatenated:
+# [3 nodes, 4 total features]
+multi_head_output = torch.cat(
+    head_outputs,
+    dim=1,
+)
+
+print("\nConcatenated multi-head output:")
+print(multi_head_output)
+print("multi-head output shape:", multi_head_output.shape)
+
+# Each list item has shape [num_edges].
+#
+# Stack along dimension 1:
+#
+# [7] and [7]
+# become
+# [7 edges, 2 heads]
+attention_by_edge_and_head = torch.stack(
+    head_attention_weights,
+    dim=1,
+)
+
+print("\nAttention per edge and head:")
+print(attention_by_edge_and_head)
+print(
+    "attention tensor shape:",
+    attention_by_edge_and_head.shape,
+)
+
