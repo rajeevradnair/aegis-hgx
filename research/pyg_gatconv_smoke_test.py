@@ -68,3 +68,21 @@ print("Additionally, each attention head generates the attention weight to be as
 print("\nOutput shape:", new_node_representation.shape, f" i.e. ({new_node_representation.shape[0]} nodes with {x.shape[1]} transformed features each) generated twice from each of the 2 attention heads")
 print("\nUsed edge_index shape:", used_edge_index.shape)
 print("\nAttention shape:", attention_weights.shape, f" i.e. ({attention_weights.shape[0]} edges with 1 attention weight each) generated twice, once from each attention head")
+
+
+node_names = ["A", "B", "C"]
+
+print("\nAttention coefficients:")
+
+for edge_position in range(used_edge_index.shape[1]):
+    sender = int(used_edge_index[0, edge_position])
+    receiver = int(used_edge_index[1, edge_position])
+
+    head_weights = attention_weights[edge_position]
+
+    print(
+        f"Edge {node_names[sender]} → {node_names[receiver]} : "
+        f"head 1 = {head_weights[0].item():.4f}, "
+        f"head 2 = {head_weights[1].item():.4f}"
+    )
+
