@@ -54,7 +54,7 @@ print(gat)
 
 gat.eval()
 with torch.no_grad():
-    output, attention_info = gat(
+    new_node_representation, attention_info = gat(
         x,
         edge_index,
         return_attention_weights=True,
@@ -63,6 +63,8 @@ with torch.no_grad():
 used_edge_index, attention_weights = attention_info
 
 print("\nInput shape:", x.shape)
-print("Output shape:", output.shape)
-print("Used edge_index shape:", used_edge_index.shape)
-print("Attention shape:", attention_weights.shape)
+print("\nEach attention head generates the new feature representation for each node")
+print("Additionally, each attention head generates the attention weight to be assigned to each edge")
+print("\nOutput shape:", new_node_representation.shape, f" i.e. ({new_node_representation.shape[0]} nodes with {x.shape[1]} transformed features each) generated twice from each of the 2 attention heads")
+print("\nUsed edge_index shape:", used_edge_index.shape)
+print("\nAttention shape:", attention_weights.shape, f" i.e. ({attention_weights.shape[0]} edges with 1 attention weight each) generated twice, once from each attention head")
