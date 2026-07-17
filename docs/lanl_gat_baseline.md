@@ -1,3 +1,509 @@
+# LANL GAT Baseline
+
+## Purpose
+
+This document records the implementation and evaluation contract for the LANL Graph Attention Network baseline in Aegis-HGX.
+
+The baseline extends the existing homogeneous LANL graph experiments from GCN and GraphSAGE to an attention-based message-passing model. Its purpose is to test whether learned neighbor weighting improves suspicious-node classification on the same graph, split policy, metrics, and experiment-tracking foundation used by the other static graph baselines.
+
+## Phase Classification
+
+| Topic | Project Phase |
+|---|---|
+| GAT layer and head design | Architecture/design |
+| Parameter optimization | Training |
+| Best-checkpoint selection | Validation |
+| Final held-out metrics | Test |
+| Attention-head count and dropout choices | Research/experimentation |
+| Loading the saved checkpoint for prediction | Inference |
+
+## Implementation Files
+
+```text
+src/aegis_hgx/models/baselines/train_lanl_gat_pyg.py
+configs/lanl_gat_pyg.yaml
+```
+
+Generated artifacts:
+
+```text
+artifacts/models/lanl/lanl_gat_model.pt
+reports/lanl_gat_metrics.json
+mlflow/mlflow.db
+mlflow/mlruns/
+```
+
+## Input Graph Contract
+
+The training pipeline loads a serialized homogeneous PyTorch Geometric `Data` object.
+
+Required fields:
+
+```text
+data.x
+data.edge_index
+data.y
+data.num_nodes
+```
+
+Expected tensor shapes:
+
+```text
+data.x          [num_nodes, num_node_features]
+data.edge_index [2, num_edges]
+data.y          [num_nodes]
+```
+
+Expected dtypes:
+
+```text
+data.x          floating point
+data.edge_index torch.long
+data.y          torch.long
+```
+
+The graph is validated before training for:
+
+- required attributes,
+- tensor ranks,
+- node-count alignment,
+- valid edge indices,
+- finite node features,
+- non-empty edge set,
+- and valid class labels.
+
+## Model Architecture
+
+The model is a two-layer node-classification GAT.
+
+```text
+LANL node-feature matrix
+        |
+        v
+Feature dropout
+        |
+        v
+Multi-head GAT hidden layer
+        |
+        v
+ELU activation
+        |
+        v
+Feature dropout
+        |
+        v
+Single-head GAT output layer
+        |
+        v
+One raw score per class for every node
+```
+
+Default configuration:
+
+```yaml
+model:
+  hidden_channels: 16
+  heads: 4
+  dropout: 0.30
+  attention_dropout: 0.20
+  negative_slope: 0.20
+  add_self_loops: true
+```
+
+### Hidden-layer shape
+
+For:
+
+```text
+input feature width = F
+hidden_channels     = 16 per head
+heads               = 4
+```
+
+the first layer performs:
+
+```text
+[num_nodes, F]
+->
+[num_nodes, 16 * 4]
+->
+[num_nodes, 64]
+```
+
+Every attention head receives the complete node-feature matrix and complete graph. The nodes are not divided among heads.
+
+Each head owns an independent feature projection and independent attention parameters. The four head outputs are concatenated.
+
+### Output-layer shape
+
+For binary node classification:
+
+```text
+output_channels = 2
+```
+
+The second GAT layer performs:
+
+```text
+[num_nodes, 64]
+->
+[num_nodes, 2]
+```
+
+The output columns are raw class logits:
+
+```text
+column 0: normal-node score
+column 1: suspicious-node score
+```
+
+No softmax is applied inside the model because `cross_entropy` consumes raw logits.
+
+## GAT Attention Mechanics
+
+For a directed edge from sender node `j` to receiver node `i`, each attention head:
+
+1. Projects the complete node-feature matrix.
+2. Retrieves the transformed sender and receiver vectors for each edge.
+3. Calculates an unnormalized edge score.
+4. Applies LeakyReLU.
+5. Applies softmax over edges entering the same receiver.
+6. Multiplies sender messages by the normalized coefficients.
+7. Sums weighted messages into the receiver node.
+
+Conceptually:
+
+```text
+edge_index determines which nodes may communicate
+attention determines how strongly each eligible sender influences its receiver
+```
+
+Attention coefficients are edge-level values. With `E` graph edges and `H` heads, the conceptual attention tensor has shape:
+
+```text
+[E, H]
+```
+
+## Data Splitting
+
+The implementation creates reproducible stratified node masks:
+
+```text
+train_mask [num_nodes]
+val_mask   [num_nodes]
+test_mask  [num_nodes]
+```
+
+Default ratios:
+
+```text
+train:      70%
+validation: 15%
+test:       15%
+```
+
+The split is stratified independently within each class so that rare suspicious nodes are distributed more consistently across the three sets.
+
+The masks are validated for:
+
+- correct shape,
+- Boolean dtype,
+- non-empty splits,
+- no overlap,
+- complete node coverage,
+- and class presence warnings.
+
+## Important Transductive Detail
+
+Every forward pass uses:
+
+```text
+data.x
+data.edge_index
+```
+
+for the complete graph.
+
+However, supervised labels are restricted by mask:
+
+```text
+training loss   uses train_mask
+model selection uses val_mask
+final metrics   use test_mask
+```
+
+This is a static transductive node-classification baseline.
+
+The current random stratified split is intentionally consistent with the preceding GCN and GraphSAGE baselines. It is not yet a chronological or temporal leakage-safe evaluation. Temporal splitting is handled in the later temporal-modeling phase.
+
+## Class Imbalance Handling
+
+Class weights are calculated from training labels only.
+
+This avoids using validation or test label distributions to influence optimization.
+
+Inverse-frequency weighting gives the rare class a larger loss contribution:
+
+```text
+rare suspicious class -> larger class weight
+common normal class    -> smaller class weight
+```
+
+Training loss:
+
+```python
+F.cross_entropy(
+    train_logits,
+    train_labels,
+    weight=class_weights,
+)
+```
+
+## Training Flow
+
+For every epoch:
+
+1. Set `model.train()`.
+2. Clear accumulated gradients.
+3. Run a full-graph forward pass.
+4. Select training-node logits.
+5. Calculate weighted cross-entropy loss.
+6. Backpropagate gradients.
+7. Update parameters with Adam.
+8. Set `model.eval()`.
+9. Run validation with dropout disabled.
+10. Record train and validation loss and accuracy.
+11. Save the model state when validation loss improves.
+
+Default optimizer configuration:
+
+```yaml
+training:
+  epochs: 50
+  learning_rate: 0.005
+  weight_decay: 0.0005
+```
+
+## Best-Checkpoint Policy
+
+The final epoch is not automatically treated as the best model.
+
+The implementation stores the model state associated with the lowest validation loss.
+
+The saved checkpoint and final test evaluation both use that best validation checkpoint.
+
+This prevents a later overfit epoch from replacing a better earlier model.
+
+## Evaluation Metrics
+
+The best checkpoint is evaluated once on test nodes.
+
+Recorded metrics:
+
+- accuracy,
+- precision,
+- recall,
+- F1,
+- ROC-AUC,
+- PR-AUC,
+- positive test-node count,
+- negative test-node count,
+- total test-node count.
+
+For rare cyber anomalies, PR-AUC, recall, precision, and F1 are generally more informative than accuracy alone.
+
+A model that predicts every node as normal may have high accuracy but near-zero suspicious-node recall.
+
+## Saved Model Checkpoint
+
+The saved checkpoint contains:
+
+- model state dictionary,
+- model class,
+- input width,
+- hidden width per head,
+- number of heads,
+- concatenated hidden width,
+- output width,
+- feature dropout,
+- attention dropout,
+- LeakyReLU negative slope,
+- self-loop policy,
+- class weights,
+- best validation epoch,
+- full configuration,
+- UTC save timestamp.
+
+The best model state is stored on CPU so the checkpoint remains portable between CPU and GPU environments.
+
+## Metrics Artifact
+
+The JSON metrics artifact records:
+
+- graph metadata,
+- model architecture,
+- training configuration,
+- split configuration,
+- split counts,
+- class weights,
+- full epoch history,
+- best validation epoch,
+- and final test metrics.
+
+This artifact supports comparison against the LANL GCN and GraphSAGE baselines.
+
+## MLflow Tracking
+
+The implementation creates one MLflow run for the experiment.
+
+Logged parameters include:
+
+- model family,
+- graph type,
+- node and edge counts,
+- feature count,
+- split ratios and seed,
+- hidden width per head,
+- number of heads,
+- concatenated hidden width,
+- feature dropout,
+- attention dropout,
+- learning rate,
+- weight decay,
+- epoch count,
+- device,
+- and positive label.
+
+Logged metrics include:
+
+- per-epoch train loss,
+- per-epoch train accuracy,
+- per-epoch validation loss,
+- per-epoch validation accuracy,
+- best validation loss,
+- best validation accuracy,
+- final train metrics,
+- and final test metrics.
+
+Logged evidence artifacts include:
+
+```text
+config YAML
+metrics JSON
+model checkpoint
+```
+
+## Run Command
+
+From the repository root:
+
+```bash
+python -m src.aegis_hgx.models.baselines.train_lanl_gat_pyg \
+  --config configs/lanl_gat_pyg.yaml
+```
+
+## Expected Execution Checks
+
+The run should confirm:
+
+```text
+graph loaded successfully
+node and edge tensor shapes are valid
+masks cover all nodes without overlap
+hidden GAT width equals hidden_channels * heads
+forward logits have shape [num_nodes, num_classes]
+all logits are finite
+training and validation losses are finite
+best checkpoint is saved
+test metrics are written
+MLflow artifacts are logged
+```
+
+## Common Failure Modes
+
+### Incorrect hidden width
+
+With:
+
+```text
+hidden_channels = 16
+heads = 4
+concat = true
+```
+
+the second layer must receive 64 features, not 16.
+
+### Edge direction error
+
+PyG uses:
+
+```text
+edge_index[0] = sender indices
+edge_index[1] = receiver indices
+```
+
+Reversing the rows changes the message-passing direction.
+
+### Duplicate or unexpected self-loops
+
+The model currently uses:
+
+```text
+add_self_loops = true
+```
+
+The graph-building pipeline should document whether self-loops already exist. Unexpected duplicate self-loops can alter aggregation behavior.
+
+### Accuracy hides class collapse
+
+High accuracy with low recall, F1, or PR-AUC usually indicates that the model predicts almost every node as normal.
+
+### Missing positive nodes in a split
+
+Very small positive-class counts can produce a validation or test split with only one class. ROC-AUC and PR-AUC may then be undefined.
+
+### NaN or infinite loss
+
+Check:
+
+- node-feature finiteness,
+- feature scaling,
+- learning rate,
+- graph corruption,
+- and gradient instability.
+
+### GAT memory cost
+
+GAT calculates attention values per edge and per head. Increasing graph edges, head count, or hidden width can materially increase memory and runtime.
+
+## Baseline Comparison Contract
+
+The GAT result should be compared with GCN and GraphSAGE using:
+
+- the same LANL graph artifact,
+- the same split ratios,
+- the same split seed,
+- the same class-weighting policy,
+- the same metric definitions,
+- and equivalent checkpoint-selection rules.
+
+The key research question is:
+
+> Does learned neighbor weighting improve suspicious-node detection enough to justify the additional runtime and memory cost compared with GCN and GraphSAGE?
+
+## Current Limitations
+
+- Homogeneous graph only.
+- Static graph only.
+- Node-level classification only.
+- Random stratified split rather than temporal split.
+- No relation-specific message passing.
+- No edge features in the attention calculation.
+- No neighbor sampling.
+- No attention-based explanation report.
+- No multi-seed statistical comparison yet.
+- No hyperparameter sweep yet.
+
 1{
   "best_validation_epoch": {
     "epoch": 50.0,
