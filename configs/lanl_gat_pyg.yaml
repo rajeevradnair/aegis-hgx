@@ -1,0 +1,43 @@
+input:
+  graph_path: artifacts/models/lanl/lanl_homogeneous_graph.pt
+
+output:
+  model_path: artifacts/models/lanl/lanl_gat_model.pt
+  metrics_path: reports/lanl_gat_metrics.json
+
+split:
+  train_ratio: 0.70
+  val_ratio: 0.15
+  test_ratio: 0.15
+  seed: 42
+
+model:
+  # Width produced by each head.
+  # 16 channels/head * 4 heads = 64 concatenated hidden features.
+  hidden_channels: 16
+  heads: 4
+
+  # Feature dropout between GAT layers.
+  dropout: 0.30
+
+  # Dropout applied to normalized edge-attention coefficients.
+  attention_dropout: 0.20
+
+  # LeakyReLU slope used while calculating attention scores.
+  negative_slope: 0.20
+
+  # Include each node's own representation during aggregation.
+  add_self_loops: true
+
+training:
+  epochs: 50
+  learning_rate: 0.005
+  weight_decay: 0.0005
+
+evaluation:
+  positive_label: 1
+
+experiment_tracking:
+  experiment_name: aegis-hgx-lanl-gat-baseline
+  uri: sqlite:///mlflow/mlflow.db
+  artifact_root: mlflow/mlruns
