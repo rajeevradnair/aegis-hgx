@@ -1,0 +1,33 @@
+input:
+  graph_path: artifacts/models/lanl/lanl_homogeneous_graph.pt
+
+output:
+  model_path: artifacts/models/lanl/lanl_graph_autoencoder.pt
+  metrics_path: reports/lanl_graph_autoencoder_metrics.json
+  embeddings_path: artifacts/models/lanl/lanl_graph_autoencoder_embeddings.pt
+
+split:
+  val_ratio: 0.15
+  test_ratio: 0.15
+  seed: 42
+  is_undirected: true
+  negative_sampling_ratio: 1.0
+
+model:
+  hidden_channels: 64
+  latent_channels: 32
+  dropout: 0.30
+
+training:
+  epochs: 100
+  learning_rate: 0.01
+  weight_decay: 0.0005
+  log_every_n_epochs: 10
+
+evaluation:
+  anomaly_score_method: one_minus_probability
+
+experiment_tracking:
+  experiment_name: aegis-hgx-lanl-graph-autoencoder
+  uri: sqlite:///mlflow/mlflow.db
+  artifact_root: mlflow/mlruns
