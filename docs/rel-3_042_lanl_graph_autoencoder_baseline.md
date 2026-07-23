@@ -6,7 +6,7 @@ This component implements a reconstruction-based graph anomaly baseline for the 
 
 Unlike the earlier GCN, GraphSAGE, and GAT baselines, this model does not train directly against node anomaly labels. It learns node embeddings by reconstructing observed graph relationships.
 
-## Files
+## Files 
 
 * `src/aegis_hgx/models/baselines/train_lanl_graph_autoencoder.py`
 * `configs/lanl_graph_autoencoder.yaml`
