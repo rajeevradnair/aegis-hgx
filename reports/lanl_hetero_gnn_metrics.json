@@ -1,0 +1,170 @@
+{
+  "model": {
+    "name": "heterogeneous_graphsage",
+    "operator": "relation_specific_sageconv",
+    "aggregation": "sum",
+    "objective": "weighted_user_and_host_node_classification",
+    "hidden_channels": 32,
+    "dropout": 0.3
+  },
+  "graph": {
+    "node_types": [
+      "user",
+      "host",
+      "process",
+      "host_or_domain"
+    ],
+    "edge_types": [
+      [
+        "host",
+        "dns_resolution",
+        "host_or_domain"
+      ],
+      [
+        "host",
+        "network_flow",
+        "host"
+      ],
+      [
+        "user",
+        "auth_authmap",
+        "host"
+      ],
+      [
+        "user",
+        "auth_logoff",
+        "host"
+      ],
+      [
+        "user",
+        "auth_logon",
+        "host"
+      ],
+      [
+        "user",
+        "auth_tgs",
+        "host"
+      ],
+      [
+        "user",
+        "auth_tgt",
+        "host"
+      ],
+      [
+        "user",
+        "process_end",
+        "process"
+      ],
+      [
+        "user",
+        "process_start",
+        "process"
+      ],
+      [
+        "host_or_domain",
+        "rev_dns_resolution",
+        "host"
+      ],
+      [
+        "host",
+        "rev_network_flow",
+        "host"
+      ],
+      [
+        "host",
+        "rev_auth_authmap",
+        "user"
+      ],
+      [
+        "host",
+        "rev_auth_logoff",
+        "user"
+      ],
+      [
+        "host",
+        "rev_auth_logon",
+        "user"
+      ],
+      [
+        "host",
+        "rev_auth_tgs",
+        "user"
+      ],
+      [
+        "host",
+        "rev_auth_tgt",
+        "user"
+      ],
+      [
+        "process",
+        "rev_process_end",
+        "user"
+      ],
+      [
+        "process",
+        "rev_process_start",
+        "user"
+      ]
+    ],
+    "node_counts": {
+      "user": 10986,
+      "host": 9446,
+      "process": 1895,
+      "host_or_domain": 1775
+    },
+    "relation_edge_counts": {
+      "host|dns_resolution|host_or_domain": 36043,
+      "host|network_flow|host": 29399,
+      "user|auth_authmap|host": 1253,
+      "user|auth_logoff|host": 26817,
+      "user|auth_logon|host": 27756,
+      "user|auth_tgs|host": 15948,
+      "user|auth_tgt|host": 3467,
+      "user|process_end|process": 24074,
+      "user|process_start|process": 96633,
+      "host_or_domain|rev_dns_resolution|host": 36043,
+      "host|rev_network_flow|host": 29399,
+      "host|rev_auth_authmap|user": 1253,
+      "host|rev_auth_logoff|user": 26817,
+      "host|rev_auth_logon|user": 27756,
+      "host|rev_auth_tgs|user": 15948,
+      "host|rev_auth_tgt|user": 3467,
+      "process|rev_process_end|user": 24074,
+      "process|rev_process_start|user": 96633
+    },
+    "redteam_ground_truth_edges_used": false
+  },
+  "training": {
+    "epochs_requested": 30,
+    "best_epoch": 30,
+    "checkpoint_selection_metric": "validation_average_precision"
+  },
+  "validation": {
+    "roc_auc": 0.8595146977260122,
+    "average_precision": 0.2513789471477239,
+    "precision": 0.3333333333333333,
+    "recall": 0.36666666666666664,
+    "f1": 0.3492063492063492,
+    "threshold": 0.9099999999999999,
+    "examples": 3065,
+    "positives": 60,
+    "alerts": 66
+  },
+  "test": {
+    "roc_auc": 0.8791884045316627,
+    "average_precision": 0.24891867548822594,
+    "precision": 0.36507936507936506,
+    "recall": 0.3770491803278688,
+    "f1": 0.3709677419354839,
+    "threshold": 0.9099999999999999,
+    "examples": 3065,
+    "positives": 61,
+    "alerts": 63
+  },
+  "limitations": [
+    "This is a static transductive node-classification baseline, not a chronological evaluation.",
+    "Process and host_or_domain nodes provide context but are not supervised targets.",
+    "Red-team ground-truth edges are excluded from features and message passing.",
+    "Threshold selection uses validation F1 and may not represent a production SOC operating point."
+  ]
+}
