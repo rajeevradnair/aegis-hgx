@@ -1,0 +1,24 @@
+input:
+  nodes_path: data/processed/lanl/graph_nodes.parquet
+  edges_path: data/processed/lanl/graph_edges.parquet
+  graph_path: artifacts/models/lanl/lanl_heterogeneous_graph.pt
+
+output:
+  model_path: artifacts/models/lanl/lanl_hetero_gnn_model.pt
+  metrics_path: reports/lanl_hetero_gnn_metrics.json
+
+split:
+  train_ratio: 0.70
+  validation_ratio: 0.15
+  test_ratio: 0.15
+  seed: 42
+
+model:
+  hidden_channels: 32
+  dropout: 0.30
+
+training:
+  epochs: 30
+  learning_rate: 0.005
+  weight_decay: 0.0005
+  log_every_n_epochs: 5
