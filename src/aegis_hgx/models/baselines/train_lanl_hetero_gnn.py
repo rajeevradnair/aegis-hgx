@@ -150,6 +150,7 @@ class HeterogeneousGraphSAGE(nn.Module):
             torch.Tensor,
         ],
     ) -> dict[str, torch.Tensor]:
+        
         hidden_dict = self.conv1(
             x_dict,
             edge_index_dict,
